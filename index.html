@@ -1,0 +1,1749 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Incident response cheatsheet 2026 v3 text-only</title>
+  <style>
+    :root {
+      --bg: #071018;
+      --bg-soft: #0d1823;
+      --panel: rgba(11, 23, 34, 0.9);
+      --panel-strong: rgba(7, 17, 27, 0.97);
+      --line: rgba(90, 215, 255, 0.18);
+      --line-strong: rgba(108, 247, 255, 0.34);
+      --text: #d9f3ff;
+      --muted: #8db3c3;
+      --accent: #6cf7ff;
+      --accent-2: #9dff82;
+      --warn: #ffd36a;
+      --danger: #ff8b8b;
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.46);
+      --radius: 22px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: Bahnschrift, "Segoe UI Variable", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(108, 247, 255, 0.12), transparent 32%),
+        radial-gradient(circle at top right, rgba(157, 255, 130, 0.08), transparent 28%),
+        linear-gradient(180deg, #05111b 0%, #09131d 45%, #050b12 100%);
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(108, 247, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(108, 247, 255, 0.03) 1px, transparent 1px);
+      background-size: 28px 28px;
+      pointer-events: none;
+      opacity: 0.48;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .shell {
+      width: min(1540px, calc(100vw - 28px));
+      margin: 18px auto 44px;
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      gap: 20px;
+    }
+
+    .sidebar,
+    .content section,
+    .hero,
+    .card,
+    details,
+    .command-block,
+    .tip,
+    .table-wrap {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 18px;
+      align-self: start;
+      padding: 24px;
+      border-radius: var(--radius);
+      max-height: calc(100vh - 36px);
+      overflow: auto;
+    }
+
+    .sidebar h1 {
+      margin: 0 0 8px;
+      font-size: 1.2rem;
+      line-height: 1.2;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .sidebar p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.55;
+    }
+
+    .nav {
+      display: grid;
+      gap: 10px;
+    }
+
+    .nav a {
+      display: block;
+      padding: 10px 12px;
+      border-radius: 12px;
+      color: var(--text);
+      background: rgba(108, 247, 255, 0.03);
+      border: 1px solid rgba(108, 247, 255, 0.08);
+      transition: 0.18s ease;
+      font-size: 0.95rem;
+    }
+
+    .nav a:hover {
+      transform: translateX(4px);
+      border-color: rgba(108, 247, 255, 0.28);
+      background: rgba(108, 247, 255, 0.08);
+    }
+
+    .hint {
+      margin-top: 18px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(108, 247, 255, 0.05);
+      border: 1px solid rgba(108, 247, 255, 0.12);
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 0.92rem;
+    }
+
+    .content {
+      display: grid;
+      gap: 20px;
+    }
+
+    .hero {
+      border-radius: 30px;
+      padding: 34px;
+      overflow: hidden;
+      position: relative;
+      background:
+        radial-gradient(circle at 80% 20%, rgba(108, 247, 255, 0.16), transparent 20%),
+        radial-gradient(circle at 90% 85%, rgba(157, 255, 130, 0.12), transparent 18%),
+        linear-gradient(135deg, rgba(7, 17, 27, 0.97), rgba(12, 28, 41, 0.97));
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -20% -35% 40%;
+      height: 240px;
+      background: radial-gradient(circle, rgba(108, 247, 255, 0.18), transparent 62%);
+      filter: blur(18px);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(108, 247, 255, 0.08);
+      color: var(--accent);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .hero h2 {
+      margin: 0 0 16px;
+      font-size: clamp(2rem, 4.4vw, 4rem);
+      line-height: 0.98;
+      max-width: 12ch;
+    }
+
+    .hero p {
+      max-width: 74ch;
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.8;
+      font-size: 1rem;
+    }
+
+    .authorline {
+      margin: 0 0 14px;
+      color: var(--text);
+      font-size: 0.98rem;
+      letter-spacing: 0.03em;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 24px;
+    }
+
+    .stat {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(3, 10, 15, 0.62);
+      border: 1px solid rgba(108, 247, 255, 0.12);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 1.6rem;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+
+    section {
+      border-radius: 24px;
+      padding: 28px;
+    }
+
+    section h3 {
+      margin: 0 0 18px;
+      font-size: 1.45rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    section h4 {
+      margin: 24px 0 10px;
+      font-size: 1rem;
+      color: var(--accent-2);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    section h5 {
+      margin: 16px 0 8px;
+      font-size: 0.95rem;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    section p,
+    section li {
+      color: var(--muted);
+      line-height: 1.75;
+    }
+
+    ul,
+    ol {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .grid-2,
+    .grid-3,
+    .command-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid-2,
+    .command-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .card,
+    .command-block {
+      border-radius: 18px;
+      padding: 18px;
+      background: rgba(9, 18, 27, 0.92);
+    }
+
+    .card h5 {
+      margin-top: 0;
+    }
+
+    .pill-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pill {
+      padding: 9px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(108, 247, 255, 0.14);
+      background: rgba(108, 247, 255, 0.06);
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    .source-tag {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      vertical-align: middle;
+      border: 1px solid rgba(108, 247, 255, 0.18);
+      color: var(--text);
+      background: rgba(108, 247, 255, 0.08);
+    }
+
+    .tag-official {
+      border-color: rgba(108, 247, 255, 0.24);
+      background: rgba(108, 247, 255, 0.11);
+      color: #bbfbff;
+    }
+
+    .tag-github {
+      border-color: rgba(157, 255, 130, 0.22);
+      background: rgba(157, 255, 130, 0.1);
+      color: #d6ffc4;
+    }
+
+    .tag-nirsoft {
+      border-color: rgba(255, 211, 106, 0.22);
+      background: rgba(255, 211, 106, 0.1);
+      color: #ffe7a4;
+    }
+
+    .tag-codeberg {
+      border-color: rgba(255, 139, 139, 0.22);
+      background: rgba(255, 139, 139, 0.1);
+      color: #ffc7c7;
+    }
+
+    .tip {
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(255, 211, 106, 0.08);
+      border-color: rgba(255, 211, 106, 0.22);
+      color: #ffe9ab;
+      line-height: 1.72;
+      margin-top: 18px;
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    figure {
+      margin: 0;
+      border-radius: 18px;
+      overflow: hidden;
+      background: rgba(3, 11, 17, 0.92);
+      border: 1px solid rgba(108, 247, 255, 0.12);
+    }
+
+    figure img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      object-fit: cover;
+      background: #03070c;
+    }
+
+    figcaption {
+      padding: 12px 14px 14px;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    pre,
+    code {
+      font-family: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+    }
+
+    pre {
+      margin: 0;
+      padding: 18px;
+      overflow: auto;
+      border-radius: 16px;
+      background: rgba(2, 8, 12, 0.94);
+      border: 1px solid rgba(108, 247, 255, 0.12);
+      color: #cffff8;
+      line-height: 1.55;
+      font-size: 0.87rem;
+    }
+
+    details {
+      border-radius: 18px;
+      overflow: hidden;
+      background: rgba(10, 19, 29, 0.95);
+    }
+
+    summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 16px 18px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text);
+      background: rgba(108, 247, 255, 0.06);
+      border-bottom: 1px solid transparent;
+      position: relative;
+      padding-left: 54px;
+    }
+
+    summary::before {
+      content: "▾";
+      position: absolute;
+      left: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--accent);
+      font-size: 1.1rem;
+      font-weight: 900;
+    }
+
+    details:not([open]) summary::before {
+      content: "▸";
+    }
+
+    details[open] summary {
+      border-bottom-color: rgba(108, 247, 255, 0.14);
+    }
+
+    .details-body {
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .table-wrap {
+      border-radius: 18px;
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 680px;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(108, 247, 255, 0.1);
+      color: var(--muted);
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--text);
+      background: rgba(108, 247, 255, 0.06);
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      padding: 10px 0 0;
+    }
+
+    @media (max-width: 1240px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        max-height: none;
+      }
+
+      .stats,
+      .grid-3,
+      .gallery {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 820px) {
+      .shell {
+        width: min(100vw - 16px, 100%);
+        margin: 8px auto 24px;
+      }
+
+      .hero,
+      .sidebar,
+      section {
+        padding: 20px;
+        border-radius: 20px;
+      }
+
+      .stats,
+      .grid-2,
+      .grid-3,
+      .gallery,
+      .command-grid {
+        grid-template-columns: 1fr;
+      }
+
+      summary {
+        padding-left: 48px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <h1>Incident Response cheatsheet by Matt "difr000" Sabaj (difr000@proton.me)</h1>
+      <p>Pełna, rozbudowana wersja HTML zgodna z założeniami autora. Komendy i procedury są widoczne w treści, a sekcje oznaczone symbolem <strong>▾</strong> można dodatkowo zwijać i rozwijać.</p>
+      <nav class="nav">
+        <a href="#intro">Wprowadzenie i zasady</a>
+        <a href="#notify">Powiadomienie i wywiad</a>
+        <a href="#infra">Infrastruktura</a>
+        <a href="#vectors">Hipotezy wejścia</a>
+        <a href="#media">Nośniki i obrazowanie</a>
+        <a href="#analysis">Analiza i artefakty</a>
+        <a href="#linux">Linux / Unix</a>
+        <a href="#windows">Windows / Windows Server</a>
+        <a href="#closeout">Containment i recovery</a>
+      </nav>
+      <div class="hint">
+        W tym dokumencie sekcje rozwijane są domyślnie otwarte, więc treść nie jest schowana.
+        Symbol <strong>▾</strong> oznacza, że blok możesz zwinąć, jeśli chcesz czytać bardziej selektywnie.
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="hero" id="intro">
+        <div class="eyebrow">Evidence First • Multi-Surface IR • Windows + Linux</div>
+        <p class="authorline">Incident Response cheatsheet by Matt "difr000" Sabaj (difr000@proton.me)</p>
+        <h2>Incident response cheatsheet 2026 v3</h2>
+        <p>
+          Ta wersja HTML łączy checklisty operacyjne z praktycznymi procedurami, komendami oraz krokami postępowania w DIFR.
+        </p>
+        <div class="tip" style="margin-top:18px;">
+          Niniejsza wersja 3 jest przygotowana jako wariant <strong>Poradnik</strong>: czyli wskazówki, porady oraz komendy, które mają stanowić wsparcie dla Czytelnika.
+        </div>
+        <div class="stats">
+          <div class="stat">
+            <strong>87%</strong>
+            <span>incydentów obejmowało więcej niż jedną powierzchnię ataku</span>
+          </div>
+          <div class="stat">
+            <strong>48%</strong>
+            <span>spraw zawierało komponent przeglądarkowy lub SaaS</span>
+          </div>
+          <div class="stat">
+            <strong>~90%</strong>
+            <span>analiz dotyczyło słabości tożsamości i uwierzytelniania</span>
+          </div>
+          <div class="stat">
+            <strong>90%+</strong>
+            <span>naruszeń wykorzystało luki możliwe do ograniczenia widocznością i hardeningiem</span>
+          </div>
+        </div>
+      </header>
+
+      <section>
+        <h3>Wprowadzenie i Zasady Wspólne</h3>
+        <p>
+          W 2026 roku incident response nie może już ograniczać się do jednego hosta i jednego logu.
+          Pierwszy etap IR musi jednocześnie obejmować host, tożsamość, sieć, logi, infrastrukturę usługową,
+          dostawców, wirtualizację, backupy i ślady w przeglądarkach.
+        </p>
+        <div class="grid-2">
+          <div class="card">
+            <h5>Zasady wspólne</h5>
+            <ol>
+              <li>Evidence first, recovery second, chyba że bezpieczeństwo lub ciągłość krytyczna wymaga inaczej.</li>
+              <li>Nie wyłączaj hosta odruchowo, jeśli możesz jeszcze zebrać volatile evidence.</li>
+              <li>Izoluj logicznie, nie niszcząc RAM: VLAN, ACL, EDR isolation, odpięcie od segmentu.</li>
+              <li>Pracuj z jednego katalogu sprawy i zapisuj każdą czynność.</li>
+              <li>Zawsze haszuj artefakty i prowadź chain of custody.</li>
+              <li>Zabezpieczaj to, co rotuje się najszybciej: RAM, procesy, połączenia, logi lokalne, logi brzegowe.</li>
+              <li>Szukaj centralnych kolektorów logów i systemów kopii zanim zaczniesz działać lokalnie.</li>
+              <li>Zakładaj, że incydent może obejmować tożsamość, edge, RDP/VPN, SaaS, AD i backupy.</li>
+              <li>Traktuj backupy, logi uszkodzone i dane zaszyfrowane jako nadal wartościowe dowodowo.</li>
+              <li>Dziel działania na: wywiad, zabezpieczenie, analiza, containment, eradication, recovery.</li>
+            </ol>
+          </div>
+          <div class="card">
+            <h5>Artefakty obowiązkowe</h5>
+            <ul>
+              <li>data/czas z timezone</li>
+              <li>hostname, FQDN, IP, MAC, OS/build/kernel, machine-id</li>
+              <li>zalogowani użytkownicy i sesje</li>
+              <li>procesy, cmdline, ścieżki, hashe, uchwyty, połączenia</li>
+              <li>usługi, taski, startup, cron, timers, autoruns, GPO, Run/RunOnce</li>
+              <li>konta lokalne i domenowe, grupy uprzywilejowane, sudo/admini</li>
+              <li>Security, System, Application, IIS, auth, syslog, journal, auditd, bramy, VPN, WAF, proxy, backup</li>
+              <li>browser, downloads, jumplists, prefetch, shell history, RDP cache</li>
+              <li>MFT, UsnJrnl, SRUM, Amcache, NTUSER, UsrClass, SAM, SYSTEM, SOFTWARE, NTDS, PageFile</li>
+              <li>RAM, obraz dysku lub snapshot, hashe i metadane obrazowania</li>
+            </ul>
+          </div>
+        </div>
+        <details open style="margin-top:18px;">
+          <summary>Szybki schemat decyzyjny</summary>
+          <div class="details-body">
+            <pre><code>START
+1. Potwierdź zakres: host / user / serwer / edge / AD / backup / hypervisor / kilka segmentów
+2. Oceń priorytet: evidence first vs recovery first
+3. Ustal, które maszyny nadal pracują i czy warto chronić RAM
+4. Zidentyfikuj logi lokalne, centralne i sieciowe
+5. Ustal, czy działają backupy i czy nie nadpisują danych
+6. Zabezpiecz dane ulotne i logi na systemach krytycznych
+7. Zabezpiecz nośniki, snapshoty, obrazy i klucze odszyfrowujące
+8. Zbuduj hipotezy: user / edge / VPN / web / RDP / usługa / konto uprzywilejowane
+9. Zbuduj timeline i scope
+10. Wdróż containment na hostach, kontach, segmentach i usługach
+11. Przeprowadź eradication
+12. Recovery + hardening + rotacja haseł/kluczy + poprawa telemetryki
+END</code></pre>
+          </div>
+        </details>
+      </section>
+
+      <section id="notify">
+        <h3>Powiadomienie o Incydencie i Wywiad</h3>
+        <div class="grid-3">
+          <div class="card">
+            <h5>Co ustalić podczas pierwszej rozmowy</h5>
+            <ul>
+              <li>Kiedy incydent został zauważony i przez kogo.</li>
+              <li>Co przestało działać: usługi publiczne, poczta, pliki, domena, backup, hypervisor.</li>
+              <li>Czy są maszyny nadal uruchomione i czy nie były restartowane.</li>
+              <li>Jakie działania własne już wykonano: restart, odłączenie sieci, skan AV, kasowanie plików, zmiana haseł.</li>
+              <li>Czy istnieją logi centralne: SIEM, syslog, WEF, logi firewall/VPN.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h5>Macierz powiadomień</h5>
+            <ul>
+              <li>CERT Polska</li>
+              <li>Policja / organy ścigania</li>
+              <li>UODO</li>
+              <li>CEZ / regulator branżowy / operator usług kluczowych</li>
+              <li>Dostawcy, producenci, cloud, ISP, hosting</li>
+              <li>Zespół prawny i zarząd</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h5>Pierwsze 60 minut</h5>
+            <ul>
+              <li>Zachować spójny kanał koordynacji i właściciela incydentu.</li>
+              <li>Zablokować restarty i „sprzątanie” bez zgody zespołu IR.</li>
+              <li>Wskazać systemy evidence-first i recovery-first.</li>
+              <li>Zabezpieczyć centralne logi, backupy i edge.</li>
+              <li>Ustalić kolejność zabezpieczania materiału.</li>
+            </ul>
+          </div>
+        </div>
+
+        <h4>Zebranie wywiadu i ustalenie zakresu</h4>
+        <div class="grid-2">
+          <div class="card">
+            <h5>Informacje wstępne</h5>
+            <ol>
+              <li>Aktualna sytuacja.</li>
+              <li>Infrastruktura.</li>
+              <li>Rodzaj przetwarzanych danych i konsekwencje regulacyjne.</li>
+            </ol>
+          </div>
+          <div class="card">
+            <h5>Pytania o dane i wpływ</h5>
+            <ul>
+              <li>Jakiego typu dane mogły zostać naruszone.</li>
+              <li>Czy środowisko należy do infrastruktury krytycznej.</li>
+              <li>Czy istnieje obowiązek formalnego zgłoszenia i w jakim terminie.</li>
+            </ul>
+          </div>
+        </div>
+
+        <details open style="margin-top:18px;">
+          <summary>Procedura operacyjna: pierwszy kontakt i wywiad</summary>
+          <div class="details-body">
+            <ol>
+              <li>Zapisz dokładny czas zgłoszenia i osobę zgłaszającą.</li>
+              <li>Potwierdź, które systemy nadal pracują i które były restartowane.</li>
+              <li>Zapytaj o własne działania: AV, odpięcie sieci, rotacja haseł, kasowanie plików.</li>
+              <li>Ustal, gdzie są logi lokalne, centralne, sieciowe i backupy.</li>
+              <li>Ustal, czy środowisko obejmuje AD, VPN, publikację usług, hypervisory i chmurę.</li>
+              <li>Ustal rodzaj danych i ewentualne obowiązki zgłoszeniowe.</li>
+              <li>Zatrzymaj dalsze chaotyczne działania do czasu ustalenia priorytetów IR.</li>
+            </ol>
+          </div>
+        </details>
+      </section>
+
+      <section id="infra">
+        <h3>Infrastruktura Instytucji</h3>
+        <div class="grid-3">
+          <div class="card">
+            <h5>Bramy i urządzenia brzegowe</h5>
+            <p>Firewall, WAF, reverse proxy, router i VPN są jednocześnie punktami ochrony i atrakcyjnymi celami ataku. Zbieraj konfiguracje, NAT, port forwarding, logi sesji i wersje oprogramowania.</p>
+          </div>
+          <div class="card">
+            <h5>Dostęp zdalny</h5>
+            <p>Usługi publiczne i przekierowania portów nie stanowią zabezpieczenia same w sobie. Zidentyfikuj wszystkie ekspozycje, konta uprzywilejowane i rzeczywiste ścieżki administracyjne.</p>
+          </div>
+          <div class="card">
+            <h5>Środowisko AD</h5>
+            <p>Kontroler domeny, delegacje, stare uprawnienia i relacje zaufania to najkrótsza droga do szerokiego scope. Identity należy analizować razem z hostami i logami.</p>
+          </div>
+          <div class="card">
+            <h5>Wirtualizacja</h5>
+            <p>Hyper-V, VMware, KVM i Proxmox mogą rozszerzyć zasięg incydentu na wiele usług jednocześnie. Sprawdzaj hosty, snapshoty, datastore i system zarządzania.</p>
+          </div>
+          <div class="card">
+            <h5>Backupy</h5>
+            <p>Usunięte, uszkodzone lub częściowo zaszyfrowane backupy nadal mają wartość dowodową. Wstrzymaj procesy, które mogą dalej nadpisywać dane.</p>
+          </div>
+          <div class="card">
+            <h5>Dostawcy i segmentacja</h5>
+            <p>Dostawcy mogą mieć logi, snapshoty i dane ruchowe. Segmentacja logiczna lub fizyczna ogranicza blast radius i ułatwia containment.</p>
+          </div>
+        </div>
+        <details open style="margin-top:18px;">
+          <summary>Procedura operacyjna: infrastruktura do potwierdzenia</summary>
+          <div class="details-body">
+            <ol>
+              <li>Zbierz listę wszystkich usług publicznych i adresów publikowanych do Internetu.</li>
+              <li>Potwierdź, jak działa VPN, MFA, RDP Gateway i dostęp administracyjny.</li>
+              <li>Ustal, czy środowisko ma AD, wiele domen, zaufania i konta serwisowe.</li>
+              <li>Ustal warstwę wirtualizacji: hosty, VM, snapshoty, datastore, konta admin.</li>
+              <li>Ustal lokalizację backupów, repozytoriów i kont z dostępem do backupu.</li>
+              <li>Ustal centralne kolektory logów systemowych i sieciowych.</li>
+            </ol>
+          </div>
+        </details>
+      </section>
+
+      <section id="vectors">
+        <h3>Typowe Hipotezy Wektora Wejścia</h3>
+        <div class="pill-list">
+          <span class="pill">użytkownik jako wektor wejścia</span>
+          <span class="pill">podatność w usłudze publicznej</span>
+          <span class="pill">jednoskładnikowe uwierzytelnianie VPN</span>
+          <span class="pill">przekierowanie portów</span>
+          <span class="pill">nadużycie legalnych poświadczeń</span>
+        </div>
+      </section>
+
+      <section id="media">
+        <h3>Nośniki i Obrazowanie</h3>
+        <div class="grid-2">
+          <div class="card">
+            <h5>Różnice dowodowe między nośnikami</h5>
+            <ul>
+              <li><strong>HDD:</strong> lepszy potencjał odzysku usuniętych danych, wolniejsze obrazowanie.</li>
+              <li><strong>SSD:</strong> szybsze obrazowanie, ale TRIM może usuwać możliwość odzysku.</li>
+              <li><strong>M.2 / NVMe / SATA / mSATA / PCIe / U.2 / SAS / IDE:</strong> zawsze potwierdź zgodność interfejsu, kluczowania i adaptera.</li>
+              <li><strong>Karty pamięci:</strong> SD, CFast, CFexpress często wymagają dedykowanych czytników i ostrożności przy akwizycji.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h5>Zasady obrazowania</h5>
+            <ol>
+              <li>Zawsze używaj blokera zapisu lub sprzętu gwarantującego read-only.</li>
+              <li>Najpierw zidentyfikuj nośnik źródłowy i docelowy.</li>
+              <li>Sprawdź typ interfejsu i potrzebne adaptery.</li>
+              <li>Zweryfikuj pojemność i wolne miejsce na nośniku docelowym.</li>
+              <li>Dokumentuj model, numer seryjny, interfejs i fizyczny kontekst nośnika.</li>
+              <li>Preferuj format E01/EWF z metadanymi i weryfikacją.</li>
+              <li>Licz hash obrazu i pakietu wynikowego.</li>
+              <li>Jeśli nośnik jest szyfrowany, zabezpiecz klucze odzyskiwania zanim odłączysz system.</li>
+            </ol>
+          </div>
+        </div>
+
+        <h4>Narzędzia do obrazowania i live response</h4>
+        <div class="pill-list">
+          <span class="pill"><a href="https://www.opentext.com/products/tableau-forensic-duplicators" target="_blank" rel="noopener noreferrer">Tableau TX1 <span class="source-tag tag-official">Official</span></a></span>
+          <span class="pill"><a href="https://github.com/libyal/libewf" target="_blank" rel="noopener noreferrer">ewf-tools / libewf <span class="source-tag tag-github">GitHub</span></a></span>
+          <span class="pill"><a href="https://guymager.sourceforge.io/" target="_blank" rel="noopener noreferrer">Guymager <span class="source-tag tag-official">Official</span></a></span>
+          <span class="pill"><a href="https://www.caine-live.net/index.html" target="_blank" rel="noopener noreferrer">CAINE <span class="source-tag tag-official">Official</span></a></span>
+          <span class="pill"><a href="https://tsurugi-linux.org/tsurugi_linux.php" target="_blank" rel="noopener noreferrer">Tsurugi <span class="source-tag tag-official">Official</span></a></span>
+          <span class="pill"><a href="https://sumuri.com/software/paladin/" target="_blank" rel="noopener noreferrer">Paladin <span class="source-tag tag-official">Official</span></a></span>
+          <span class="pill"><a href="https://www.ventoy.net/en/" target="_blank" rel="noopener noreferrer">Ventoy <span class="source-tag tag-official">Official</span></a></span>
+        </div>
+
+        <div class="grid-3" style="margin-top:18px;">
+          <div class="card">
+            <h5>Tableau TX1</h5>
+            <p>To terenowy, sprzętowy forensic imager z wbudowanym blokowaniem zapisu na portach źródłowych. W praktyce sprawdza się tam, gdzie nie chcesz polegać na własnym laptopie i adapterach USB, tylko potrzebujesz stabilnego urządzenia do szybkiego, kontrolowanego obrazowania nośników SATA, SAS, USB i wybranych NVMe.</p>
+            <p style="margin-top:10px;"><a href="https://www.opentext.com/products/tableau-forensic-duplicators" target="_blank" rel="noopener noreferrer">Strona producenta TX1</a></p>
+          </div>
+          <div class="card">
+            <h5>M.2 i kluczowanie złączy</h5>
+            <p>Nośniki M.2 bywają mylone z samym standardem NVMe, a to błąd operacyjny. M.2 to forma fizyczna, która może przenosić SATA albo PCIe/NVMe. Przed podłączeniem nośnika trzeba sprawdzić długość modułu, typ klucza oraz to, czy adapter lub płyta główna wspiera dokładnie ten wariant kontrolera.</p>
+            <p style="margin-top:10px;"><a href="https://en.wikipedia.org/wiki/M.2" target="_blank" rel="noopener noreferrer">Materiał poglądowy o standardzie M.2</a></p>
+          </div>
+          <div class="card">
+            <h5>Ventoy jako nośnik operacyjny</h5>
+            <p>Ventoy nie jest narzędziem śledczym samym w sobie, ale praktycznym sposobem utrzymania jednego pendrive'a z wieloma obrazami: CAINE, Tsurugi, Paladin, dystrybucje rescue i środowiska serwisowe. Dzięki temu w terenie możesz szybciej dobrać środowisko startowe do konkretnego hosta.</p>
+            <p style="margin-top:10px;"><a href="https://www.ventoy.net/en/" target="_blank" rel="noopener noreferrer">Oficjalna strona Ventoy</a></p>
+          </div>
+        </div>
+
+        <details open style="margin-top:18px;">
+          <summary>Procedura: minimalne obrazowanie Linux live / ewf-tools</summary>
+          <div class="details-body">
+            <pre><code>lsblk
+fdisk -l
+mkdir -p /mnt/obrazowanie/src /mnt/obrazowanie/dst
+mount -o ro,show_sys_files,streams_interface=windows /dev/sdXN /mnt/obrazowanie/src
+df -h
+sudo ewfacquire -t /mnt/obrazowanie/dst/host_disk /dev/sdX
+ewfinfo /mnt/obrazowanie/dst/host_disk.E01
+ewfverify /mnt/obrazowanie/dst/host_disk.E01
+sha256sum /mnt/obrazowanie/dst/host_disk.E01</code></pre>
+          </div>
+        </details>
+      </section>
+
+      <section id="analysis">
+        <h3>Analiza: Narzędzia i Artefakty</h3>
+        <div class="grid-3">
+          <div class="card">
+            <h5>Narzędzia Windows</h5>
+            <ul>
+              <li><a href="https://www.sans.org/tools/evtxecmd/" target="_blank" rel="noopener noreferrer">EvtxECmd <span class="source-tag tag-official">Official</span></a></li>
+              <li><a href="https://www.sans.org/tools/timeline-explorer/" target="_blank" rel="noopener noreferrer">Timeline Explorer <span class="source-tag tag-official">Official</span></a></li>
+              <li><a href="https://www.sans.org/tools/registry-explorer/" target="_blank" rel="noopener noreferrer">Registry Explorer <span class="source-tag tag-official">Official</span></a></li>
+              <li><a href="https://ericzimmerman.github.io/#!index.md" target="_blank" rel="noopener noreferrer">AmcacheParser <span class="source-tag tag-official">Official</span></a></li>
+              <li><a href="https://ericzimmerman.github.io/#!index.md" target="_blank" rel="noopener noreferrer">PECmd <span class="source-tag tag-official">Official</span></a></li>
+              <li><a href="https://ericzimmerman.github.io/#!index.md" target="_blank" rel="noopener noreferrer">JLECmd <span class="source-tag tag-official">Official</span></a></li>
+              <li><a href="https://ericzimmerman.github.io/#!index.md" target="_blank" rel="noopener noreferrer">MFTECmd <span class="source-tag tag-official">Official</span></a></li>
+              <li><a href="https://ericzimmerman.github.io/#!index.md" target="_blank" rel="noopener noreferrer">SrumECmd <span class="source-tag tag-official">Official</span></a></li>
+              <li><a href="https://ericzimmerman.github.io/#!index.md" target="_blank" rel="noopener noreferrer">SumECmd <span class="source-tag tag-official">Official</span></a></li>
+              <li><a href="https://codeberg.org/janstarke/ntdsextract2" target="_blank" rel="noopener noreferrer">ntdsextract2 <span class="source-tag tag-codeberg">Codeberg</span></a></li>
+            </ul>
+          </div>
+          <div class="card">
+            <h5>Przeglądarki, RDP i bazy</h5>
+            <ul>
+              <li><a href="https://sqlitebrowser.org/" target="_blank" rel="noopener noreferrer">DB Browser for SQLite <span class="source-tag tag-official">Official</span></a></li>
+              <li><a href="https://www.nirsoft.net/utils/ese_database_view.html" target="_blank" rel="noopener noreferrer">EseDatabaseView <span class="source-tag tag-nirsoft">NirSoft</span></a></li>
+              <li><a href="https://www.nirsoft.net/utils/browsing_history_view.html" target="_blank" rel="noopener noreferrer">BrowsingHistoryView <span class="source-tag tag-nirsoft">NirSoft</span></a></li>
+              <li><a href="https://www.nirsoft.net/utils/web_browser_downloads_view.html" target="_blank" rel="noopener noreferrer">BrowserDownloadsView <span class="source-tag tag-nirsoft">NirSoft</span></a></li>
+              <li><a href="https://github.com/ANSSI-FR/bmc-tools" target="_blank" rel="noopener noreferrer">bmc-tools <span class="source-tag tag-github">GitHub</span></a></li>
+              <li><a href="https://github.com/BSI-Bund/RdpCacheStitcher" target="_blank" rel="noopener noreferrer">RdpCacheStitcher <span class="source-tag tag-github">GitHub</span></a></li>
+              <li><a href="https://github.com/simsong/bulk_extractor" target="_blank" rel="noopener noreferrer">bulk_extractor <span class="source-tag tag-github">GitHub</span></a></li>
+              <li><a href="https://github.com/gentilkiwi/mimikatz" target="_blank" rel="noopener noreferrer">Mimikatz <span class="source-tag tag-github">GitHub</span></a></li>
+            </ul>
+          </div>
+          <div class="card">
+            <h5>Linux / Unix</h5>
+            <ul>
+              <li><a href="https://www.gnu.org/software/grep/" target="_blank" rel="noopener noreferrer">grep <span class="source-tag tag-official">Official</span></a> / <a href="https://github.com/BurntSushi/ripgrep" target="_blank" rel="noopener noreferrer">ripgrep <span class="source-tag tag-github">GitHub</span></a></li>
+              <li>journalctl</li>
+              <li>ausearch / aureport</li>
+              <li>ps / lsof / ss / netstat / ip</li>
+              <li>systemctl / crontab / find / sha1sum</li>
+            </ul>
+          </div>
+        </div>
+
+        <details open style="margin-top:18px;">
+          <summary>Oficjalne linki do pobrania narzędzi</summary>
+          <div class="details-body">
+            <div class="grid-3">
+              <div class="card">
+                <h5>Zimmerman / SANS</h5>
+                <ul>
+                  <li><a href="https://www.sans.org/tools/evtxecmd/" target="_blank" rel="noopener noreferrer">EvtxECmd <span class="source-tag tag-official">Official</span></a></li>
+                  <li><a href="https://www.sans.org/tools/timeline-explorer/" target="_blank" rel="noopener noreferrer">Timeline Explorer <span class="source-tag tag-official">Official</span></a></li>
+                  <li><a href="https://www.sans.org/tools/registry-explorer/" target="_blank" rel="noopener noreferrer">Registry Explorer <span class="source-tag tag-official">Official</span></a></li>
+                  <li><a href="https://ericzimmerman.github.io/#!index.md" target="_blank" rel="noopener noreferrer">Pakiet narzędzi Erica Zimmermana <span class="source-tag tag-official">Official</span></a></li>
+                </ul>
+              </div>
+              <div class="card">
+                <h5>NirSoft i bazy</h5>
+                <ul>
+                  <li><a href="https://www.nirsoft.net/utils/browsing_history_view.html" target="_blank" rel="noopener noreferrer">BrowsingHistoryView <span class="source-tag tag-nirsoft">NirSoft</span></a></li>
+                  <li><a href="https://www.nirsoft.net/utils/web_browser_downloads_view.html" target="_blank" rel="noopener noreferrer">BrowserDownloadsView <span class="source-tag tag-nirsoft">NirSoft</span></a></li>
+                  <li><a href="https://www.nirsoft.net/utils/ese_database_view.html" target="_blank" rel="noopener noreferrer">EseDatabaseView <span class="source-tag tag-nirsoft">NirSoft</span></a></li>
+                  <li><a href="https://sqlitebrowser.org/" target="_blank" rel="noopener noreferrer">DB Browser for SQLite <span class="source-tag tag-official">Official</span></a></li>
+                </ul>
+              </div>
+              <div class="card">
+                <h5>GitHub / projekty open source</h5>
+                <ul>
+                  <li><a href="https://github.com/ANSSI-FR/bmc-tools" target="_blank" rel="noopener noreferrer">bmc-tools <span class="source-tag tag-github">GitHub</span></a></li>
+                  <li><a href="https://github.com/BSI-Bund/RdpCacheStitcher" target="_blank" rel="noopener noreferrer">RdpCacheStitcher <span class="source-tag tag-github">GitHub</span></a></li>
+                  <li><a href="https://github.com/simsong/bulk_extractor" target="_blank" rel="noopener noreferrer">bulk_extractor <span class="source-tag tag-github">GitHub</span></a></li>
+                  <li><a href="https://github.com/gentilkiwi/mimikatz" target="_blank" rel="noopener noreferrer">Mimikatz <span class="source-tag tag-github">GitHub</span></a></li>
+                  <li><a href="https://github.com/libyal/libewf" target="_blank" rel="noopener noreferrer">libewf / ewf-tools <span class="source-tag tag-github">GitHub</span></a></li>
+                  <li><a href="https://github.com/BurntSushi/ripgrep" target="_blank" rel="noopener noreferrer">ripgrep <span class="source-tag tag-github">GitHub</span></a></li>
+                  <li><a href="https://codeberg.org/janstarke/ntdsextract2" target="_blank" rel="noopener noreferrer">ntdsextract2 <span class="source-tag tag-codeberg">Codeberg</span></a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="card">
+                <h5>Obrazowanie i live response</h5>
+                <ul>
+                  <li><a href="https://www.opentext.com/products/tableau-forensic-duplicators" target="_blank" rel="noopener noreferrer">OpenText Tableau TX1 <span class="source-tag tag-official">Official</span></a></li>
+                  <li><a href="https://guymager.sourceforge.io/" target="_blank" rel="noopener noreferrer">Guymager <span class="source-tag tag-official">Official</span></a></li>
+                  <li><a href="https://www.caine-live.net/index.html" target="_blank" rel="noopener noreferrer">CAINE <span class="source-tag tag-official">Official</span></a></li>
+                  <li><a href="https://tsurugi-linux.org/tsurugi_linux.php" target="_blank" rel="noopener noreferrer">Tsurugi Linux <span class="source-tag tag-official">Official</span></a></li>
+                  <li><a href="https://sumuri.com/software/paladin/" target="_blank" rel="noopener noreferrer">Paladin <span class="source-tag tag-official">Official</span></a></li>
+                  <li><a href="https://www.ventoy.net/en/" target="_blank" rel="noopener noreferrer">Ventoy <span class="source-tag tag-official">Official</span></a></li>
+                </ul>
+              </div>
+              <div class="card">
+                <h5>Dodatkowe</h5>
+                <ul>
+                  <li><a href="https://www.gnu.org/software/grep/" target="_blank" rel="noopener noreferrer">GNU grep <span class="source-tag tag-official">Official</span></a></li>
+                  <li><a href="https://github.com/libyal/libewf/wiki/Home" target="_blank" rel="noopener noreferrer">Dokumentacja libewf / ewf-tools <span class="source-tag tag-github">GitHub</span></a></li>
+                  <li><a href="https://github.com/BSI-Bund/RdpCacheStitcher/releases/" target="_blank" rel="noopener noreferrer">RdpCacheStitcher Releases <span class="source-tag tag-github">GitHub</span></a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <h4>Artefakty szczególnie cenne</h4>
+        <div class="table-wrap" style="margin-top:12px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Artefakt Windows</th>
+                <th>Lokalizacja</th>
+                <th>Wartość śledcza</th>
+                <th>Sugerowane narzędzie</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Event Logs</td>
+                <td><code>C:\Windows\System32\winevt\Logs</code></td>
+                <td>logowania, usługi, taski, RDP, czyszczenie logów, PowerShell, Defender</td>
+                <td>EvtxECmd, Timeline Explorer</td>
+              </tr>
+              <tr>
+                <td>IIS Logs</td>
+                <td><code>C:\inetpub\logs\LogFiles</code></td>
+                <td>wektor wejścia HTTP, webshell, upload, exploitation paths</td>
+                <td>grep, ripgrep, Timeline Explorer</td>
+              </tr>
+              <tr>
+                <td>Amcache</td>
+                <td><code>C:\Windows\AppCompat\Programs\Amcache.hve</code></td>
+                <td>uruchamiane pliki, ślady binarek, SHA1</td>
+                <td>AmcacheParser</td>
+              </tr>
+              <tr>
+                <td>Prefetch</td>
+                <td><code>C:\Windows\Prefetch</code></td>
+                <td>uruchomienia aplikacji, częstotliwość, ścieżki dostępu</td>
+                <td>PECmd</td>
+              </tr>
+              <tr>
+                <td>SRUM</td>
+                <td><code>C:\Windows\System32\sru\SRUDB.dat</code></td>
+                <td>procesy i wykorzystanie sieci przez aplikacje</td>
+                <td>SrumECmd</td>
+              </tr>
+              <tr>
+                <td>UAL</td>
+                <td><code>C:\Windows\System32\LogFiles\sum</code></td>
+                <td>dostępy do ról serwera i klientów z długą retencją</td>
+                <td>SumECmd</td>
+              </tr>
+              <tr>
+                <td>NTDS</td>
+                <td><code>C:\Windows\NTDS\ntds.dit</code></td>
+                <td>użytkownicy, grupy, komputery, historia zmian AD</td>
+                <td>ntdsextract2</td>
+              </tr>
+              <tr>
+                <td>NTUSER / UsrClass</td>
+                <td><code>C:\Users\&lt;user&gt;\NTUSER.dat</code><br><code>C:\Users\&lt;user&gt;\AppData\Local\Microsoft\Windows\UsrClass.dat</code></td>
+                <td>UserAssist, RunMRU, RecentDocs, MountPoints, ślady RDP i plików</td>
+                <td>Registry Explorer</td>
+              </tr>
+              <tr>
+                <td>Jump Lists</td>
+                <td><code>AutomaticDestinations</code>, <code>CustomDestinations</code></td>
+                <td>ostatnio otwierane pliki i używane aplikacje</td>
+                <td>JLECmd</td>
+              </tr>
+              <tr>
+                <td>RDP Cache</td>
+                <td><code>C:\Users\&lt;user&gt;\AppData\Local\Microsoft\Terminal Server Client\Cache</code></td>
+                <td>rekonstrukcja działań operatora na zdalnej maszynie</td>
+                <td>bmc-tools, RdpCacheStitcher</td>
+              </tr>
+              <tr>
+                <td>PageFile</td>
+                <td><code>C:\PageFile.sys</code></td>
+                <td>ciągi z RAM: cmdline, IP, domeny, polecenia</td>
+                <td>strings, grep</td>
+              </tr>
+              <tr>
+                <td>NTFS Metafiles</td>
+                <td><code>$MFT</code>, <code>$UsnJrnl</code>, <code>$LogFile</code>, <code>$I30</code></td>
+                <td>zmiany w systemie plików, nazwy, ruch plików, timeline</td>
+                <td>MFTECmd</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="table-wrap" style="margin-top:18px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Artefakt Linux / Unix</th>
+                <th>Lokalizacja</th>
+                <th>Wartość śledcza</th>
+                <th>Sugerowana metoda</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>System logs</td>
+                <td><code>/var/log/</code></td>
+                <td>system, aplikacje, auth, usługi, web, kernel</td>
+                <td>grep, ripgrep, kopia katalogu</td>
+              </tr>
+              <tr>
+                <td>systemd journal</td>
+                <td><code>/var/log/journal/</code></td>
+                <td>binarne logi systemowe i userowe, rotacja, kolektory</td>
+                <td>journalctl, kopia plików <code>.journal</code></td>
+              </tr>
+              <tr>
+                <td>auditd</td>
+                <td><code>/var/log/audit/audit.log</code></td>
+                <td>execve, logowania, dostęp do plików, syscall trails</td>
+                <td>ausearch, aureport</td>
+              </tr>
+              <tr>
+                <td>rsyslog/syslog config</td>
+                <td><code>/etc/rsyslog.conf</code>, <code>/etc/rsyslog.d/*</code>, <code>/etc/syslog.conf</code></td>
+                <td>retencja, routing logów, kolektory zdalne</td>
+                <td>inspekcja konfiguracji</td>
+              </tr>
+              <tr>
+                <td>systemd config</td>
+                <td><code>/etc/systemd/journald.conf</code>, <code>/etc/systemd/journal-upload.conf</code></td>
+                <td>storage, upload, host zdalny, sposób utrwalania logów</td>
+                <td>inspekcja konfiguracji</td>
+              </tr>
+              <tr>
+                <td>cron</td>
+                <td><code>/etc/crontab</code>, <code>/etc/cron*</code>, <code>/var/spool/cron</code></td>
+                <td>persistence i harmonogramy wykonywania</td>
+                <td>kopia plików, grep</td>
+              </tr>
+              <tr>
+                <td>systemd services</td>
+                <td><code>/etc/systemd/system</code>, <code>/usr/lib/systemd/system</code></td>
+                <td>usługi, timery, ścieżki startowe, persistence</td>
+                <td>systemctl, kopia plików</td>
+              </tr>
+              <tr>
+                <td>shell history</td>
+                <td><code>/home/*/.bash_history</code>, <code>/root/.bash_history</code></td>
+                <td>polecenia użytkowników i operatora ataku</td>
+                <td>kopia plików i analiza tekstowa</td>
+              </tr>
+              <tr>
+                <td>SSH keys</td>
+                <td><code>/home/*/.ssh/authorized_keys</code>, <code>/root/.ssh/authorized_keys</code></td>
+                <td>utrzymanie dostępu, nowe klucze, lateral movement</td>
+                <td>kopia plików, diff, analiza tekstowa</td>
+              </tr>
+              <tr>
+                <td>Recent user files</td>
+                <td><code>~/.local/share/recently-used.xbel</code>, <code>user-places.xbel</code></td>
+                <td>ostatnio otwierane pliki i miejsca</td>
+                <td>kopia plików XML</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <details open style="margin-top:18px;">
+          <summary>Procedura: sugerowane mapowanie analityczne Windows</summary>
+          <div class="details-body">
+            <pre><code>EVTX -&gt; EvtxECmd -&gt; Timeline Explorer
+Amcache.hve -&gt; AmcacheParser -&gt; Timeline Explorer
+Prefetch -&gt; PECmd -&gt; Timeline Explorer
+Jump Lists -&gt; JLECmd -&gt; Timeline Explorer
+SRUM -&gt; SrumECmd -&gt; Timeline Explorer
+UAL -&gt; SumECmd -&gt; Timeline Explorer
+NTDS -&gt; ntdsextract2 -&gt; Timeline Explorer / analiza relacji
+RDP cache -&gt; bmc-tools -&gt; RdpCacheStitcher
+Browser / Downloads -&gt; BrowsingHistoryView / BrowserDownloadsView / DB Browser for SQLite
+NTUSER / UsrClass / SYSTEM / SOFTWARE / SAM -&gt; Registry Explorer
+$MFT / $UsnJrnl -&gt; MFTECmd -&gt; Timeline Explorer</code></pre>
+          </div>
+        </details>
+
+        <details open style="margin-top:18px;">
+          <summary>Lista priorytetowych Event ID i logów operacyjnych Windows</summary>
+          <div class="details-body">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Event ID / Źródło</th>
+                    <th>Znaczenie</th>
+                    <th>Dlaczego ważne w IR</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>4624</td><td>udane logowanie</td><td>źródła dostępu, typ logowania, konta</td></tr>
+                  <tr><td>4625</td><td>nieudane logowanie</td><td>bruteforce, błędne hasła, enumeracja</td></tr>
+                  <tr><td>4634</td><td>logoff</td><td>zamknięcie sesji i korelacja czasu</td></tr>
+                  <tr><td>4648</td><td>explicit credentials</td><td>użycie poświadczeń do ruchu bocznego</td></tr>
+                  <tr><td>4672</td><td>admin privileges assigned</td><td>uprzywilejowane logowania</td></tr>
+                  <tr><td>4688</td><td>process creation</td><td>cmdline, LOLBins, PowerShell, tooling</td></tr>
+                  <tr><td>4697 / 7045</td><td>instalacja usługi</td><td>persistence, implant, usługowy loader</td></tr>
+                  <tr><td>4698 / 4702</td><td>scheduled task create / update</td><td>persistence i uruchomienia czasowe</td></tr>
+                  <tr><td>4719</td><td>audit policy changed</td><td>osłabianie telemetryki</td></tr>
+                  <tr><td>4720</td><td>user created</td><td>nowe konto lokalne lub domenowe</td></tr>
+                  <tr><td>4728 / 4732</td><td>dodanie do privileged group</td><td>eskalacja uprawnień</td></tr>
+                  <tr><td>4738</td><td>account changed</td><td>modyfikacja konta i atrybutów</td></tr>
+                  <tr><td>4768 / 4769 / 4771 / 4776</td><td>Kerberos / NTLM auth</td><td>uwierzytelnianie domenowe i nadużycia tożsamości</td></tr>
+                  <tr><td>5140 / 5145</td><td>share access</td><td>dostęp do udziałów i ruch boczny</td></tr>
+                  <tr><td>1102</td><td>security log cleared</td><td>silny sygnał antyforensics</td></tr>
+                  <tr><td>Sysmon 1</td><td>process create</td><td>dokładniejsza telemetria procesów</td></tr>
+                  <tr><td>Sysmon 3</td><td>network connect</td><td>połączenia wychodzące i C2</td></tr>
+                  <tr><td>Sysmon 7</td><td>image load</td><td>DLL, moduły, ładowanie bibliotek</td></tr>
+                  <tr><td>Sysmon 10</td><td>process access</td><td>np. dostęp do LSASS</td></tr>
+                  <tr><td>Sysmon 11</td><td>file create</td><td>droppery, staging, webshell</td></tr>
+                  <tr><td>Sysmon 13</td><td>registry set value</td><td>persistence w rejestrze</td></tr>
+                  <tr><td>Sysmon 22</td><td>DNS query</td><td>C2, staging, cloud infra</td></tr>
+                  <tr><td>Microsoft-Windows-PowerShell/Operational</td><td>PowerShell operational</td><td>skrypty, encoded commands, IEX</td></tr>
+                  <tr><td>Microsoft-Windows-WMI-Activity/Operational</td><td>WMI activity</td><td>zdalne wykonanie i lateral movement</td></tr>
+                  <tr><td>Microsoft-Windows-TaskScheduler/Operational</td><td>Task Scheduler operational</td><td>wykonanie tasków i ich zmiany</td></tr>
+                  <tr><td>Microsoft-Windows-Sysmon/Operational</td><td>Sysmon operational</td><td>głębsza korelacja host telemetry</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details open style="margin-top:18px;">
+          <summary>Konkretne mapy EvtxECmd przydatne w triage</summary>
+          <div class="details-body">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Kategoria mapy</th>
+                    <th>Przykładowa mapa / interpretacja</th>
+                    <th>Zastosowanie</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Przychodzące sesje RDP</td>
+                    <td>Session logon succeeded, Session reconnection succeeded, Session has been disconnected, Session logoff succeeded</td>
+                    <td>ustalenie kto i kiedy logował się RDP oraz czy sesja była wznawiana</td>
+                  </tr>
+                  <tr>
+                    <td>Udane i nieudane logowania</td>
+                    <td>Successful logon, Failed logon, SMB session authentication failure</td>
+                    <td>bruteforce, nadużycie haseł, próby dostępu sieciowego</td>
+                  </tr>
+                  <tr>
+                    <td>Działanie programów</td>
+                    <td>Application Crash, Application Crash on Launch, Application Error, The program has been terminated</td>
+                    <td>awarie po exploitation, błędy aplikacji, ślady niestabilnego payloadu</td>
+                  </tr>
+                  <tr>
+                    <td>Usługi</td>
+                    <td>A new service was installed in the system, Service started or stopped, Start type of service has changed</td>
+                    <td>persistence i implanty usługowe</td>
+                  </tr>
+                  <tr>
+                    <td>Scheduled Tasks</td>
+                    <td>Scheduled Task created, deleted, updated, started, executed</td>
+                    <td>persistence, uruchomienia czasowe, batch jobs atakującego</td>
+                  </tr>
+                  <tr>
+                    <td>Wychodzące RDP</td>
+                    <td>RDP Client is trying to connect to the server, RDP ClientActiveX has connected/disconnected</td>
+                    <td>ustalenie czy host ofiary służył do ruchu bocznego przez RDP</td>
+                  </tr>
+                  <tr>
+                    <td>Instalacja i usuwanie oprogramowania</td>
+                    <td>Installation completed successfully, Program uninstalled successfully, A program was installed, A program was deleted</td>
+                    <td>tooling atakującego, staging, usuwanie śladów</td>
+                  </tr>
+                  <tr>
+                    <td>PowerShell</td>
+                    <td>mapy wykonania skryptów PowerShell</td>
+                    <td>encoded command, download cradle, IEX, payload execution</td>
+                  </tr>
+                  <tr>
+                    <td>Konta lokalne i domenowe</td>
+                    <td>mapy tworzenia i modyfikacji kont</td>
+                    <td>eskalacja uprawnień, persistence tożsamościowa</td>
+                  </tr>
+                  <tr>
+                    <td>Połączenia i błędy</td>
+                    <td>mapy prób połączeń i błędów komunikacji</td>
+                    <td>weryfikacja kierunków ruchu i awarii po exploitach</td>
+                  </tr>
+                  <tr>
+                    <td>Windows Defender</td>
+                    <td>mapy modyfikacji ustawień i detekcji Defendera</td>
+                    <td>wyłączenia AV, detekcje, exclusions</td>
+                  </tr>
+                  <tr>
+                    <td>Czyszczenie logów</td>
+                    <td>mapa powiązana z czyszczeniem logów</td>
+                    <td>antyforensics i priorytet dla dalszej analizy dyskowej</td>
+                  </tr>
+                  <tr>
+                    <td>Zapora Windows</td>
+                    <td>mapy modyfikacji reguł zapory</td>
+                    <td>udrożnienie C2, lateral movement, zmiana exposure</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <section id="linux">
+        <h3>Linux / Unix: Algorytm od Początku do Końca</h3>
+        <p>
+          Ta sekcja zawiera pełniejszy odpowiednik proceduralny z Markdowna. Komendy są pokazane jawnie,
+          a bloki z symbolem <strong>▾</strong> są tylko opcjonalnie zwijane.
+        </p>
+
+        <details open>
+          <summary>▾ 1. Przygotuj katalog sprawy</summary>
+          <div class="details-body">
+            <pre><code>sudo -i
+export CASE=IR_$(hostname)_$(date +%F_%H%M%S)
+export IR_DIR=/root/$CASE
+mkdir -p "$IR_DIR"/{live,logs,network,processes,persistence,fs,users,web,hashes,system,users_export}
+exec &gt; &gt;(tee -a "$IR_DIR/live/console.log") 2&gt;&amp;1
+date -Ins
+hostnamectl
+uname -a</code></pre>
+            <ol>
+              <li>Przejdź na konto uprzywilejowane.</li>
+              <li>Utwórz jeden katalog sprawy z podkatalogami logicznymi.</li>
+              <li>Włącz logowanie własnej sesji do `console.log`.</li>
+            </ol>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ 2. Zabezpiecz podstawowe informacje o systemie</summary>
+          <div class="details-body">
+            <pre><code>hostname | tee "$IR_DIR/system/hostname.txt"
+uname -a | tee "$IR_DIR/system/uname.txt"
+cat /etc/*release* 2&gt;/dev/null | tee "$IR_DIR/system/os-release.txt"
+cat /etc/hostname 2&gt;/dev/null | tee "$IR_DIR/system/etc-hostname.txt"
+cat /etc/passwd | tee "$IR_DIR/system/passwd.txt"
+cat /etc/group | tee "$IR_DIR/system/group.txt"
+ip a | tee "$IR_DIR/network/ip_a.txt"
+ip route | tee "$IR_DIR/network/ip_route.txt"
+ip neigh | tee "$IR_DIR/network/ip_neigh.txt"
+cat /etc/resolv.conf | tee "$IR_DIR/network/resolv.conf.txt"
+cat /etc/hosts | tee "$IR_DIR/network/hosts.txt"</code></pre>
+            <ol>
+              <li>Zabezpiecz hostname, wersję systemu, użytkowników i grupy.</li>
+              <li>Zbierz podstawową konfigurację sieciową, routing, ARP, DNS i lokalne mapowania hostów.</li>
+            </ol>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ 3. Dane ulotne i procesy</summary>
+          <div class="details-body">
+            <pre><code>date -Ins | tee "$IR_DIR/live/date.txt"
+uptime | tee "$IR_DIR/live/uptime.txt"
+who -a | tee "$IR_DIR/users/who-a.txt"
+w | tee "$IR_DIR/users/w.txt"
+last -a | head -200 | tee "$IR_DIR/users/last.txt"
+lastlog | tee "$IR_DIR/users/lastlog.txt"
+ps auxwwf | tee "$IR_DIR/processes/ps_auxwwf.txt"
+pstree -ap | tee "$IR_DIR/processes/pstree_ap.txt"
+find -L /proc/[0-9]*/exe -print0 2&gt;/dev/null | xargs -0 sha1sum 2&gt;/dev/null | tee "$IR_DIR/processes/process_sha1.txt"
+find /proc/[0-9]*/cmdline | xargs head 2&gt;/dev/null | tee "$IR_DIR/processes/process_cmdline.txt"
+lsof +c0 -M -R -V -w -n -P | tee "$IR_DIR/processes/process_opened_files.txt"</code></pre>
+            <ol>
+              <li>Zbierz sesje i historię logowań.</li>
+              <li>Zabezpiecz listę procesów, ich drzewo, cmdline, hashe i otwarte pliki.</li>
+              <li>To jest materiał dostępny tylko z działającego systemu.</li>
+            </ol>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ 4. Sieć, sesje i aktywne połączenia</summary>
+          <div class="details-body">
+            <pre><code>ss -pantul | tee "$IR_DIR/network/ss_pantul.txt"
+ss -panto state established | tee "$IR_DIR/network/ss_established.txt"
+lsof -nP -i | tee "$IR_DIR/network/lsof_i.txt"
+netstat -nap 2&gt;/dev/null | tee "$IR_DIR/network/netstat_nap.txt"
+arp -a | tee "$IR_DIR/network/arp.txt"
+iptables -L -n -v | tee "$IR_DIR/network/iptables_Lnv.txt"
+iptables -S | tee "$IR_DIR/network/iptables_S.txt"
+nft list ruleset | tee "$IR_DIR/network/nft_ruleset.txt" 2&gt;/dev/null</code></pre>
+            <pre><code>grep -E '(:4444|:5555|:8080|:8443|:1337|:9001|:53 |:443 )' "$IR_DIR/network/ss_pantul.txt"
+grep -E 'nc |ncat |socat |bash -i|sh -i|/dev/tcp/|curl |wget |python -c|perl -e|php -r|ruby -e' /proc/*/cmdline 2&gt;/dev/null</code></pre>
+            <ol>
+              <li>Zabezpiecz stan bieżących połączeń, listenerów i tablic sieciowych.</li>
+              <li>Od razu filtruj reverse shell, tunele i nietypowe połączenia wychodzące.</li>
+            </ol>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ 5. Logi i systemy logowania</summary>
+          <div class="details-body">
+            <h5>Systemd</h5>
+            <pre><code>journalctl --no-pager -b | tee "$IR_DIR/logs/journal_boot.txt"
+journalctl --no-pager --since '7 days ago' | tee "$IR_DIR/logs/journal_7d.txt"
+cat /etc/systemd/journald.conf 2&gt;/dev/null | tee "$IR_DIR/logs/journald.conf.txt"
+cat /etc/systemd/journal-upload.conf 2&gt;/dev/null | tee "$IR_DIR/logs/journal-upload.conf.txt"
+cat /etc/machine-id 2&gt;/dev/null | tee "$IR_DIR/system/machine-id.txt"</code></pre>
+            <h5>Syslog / rsyslog</h5>
+            <pre><code>ls -la /var/log | tee "$IR_DIR/logs/varlog_listing.txt"
+cat /etc/rsyslog.conf 2&gt;/dev/null | tee "$IR_DIR/logs/rsyslog.conf.txt"
+cat /etc/syslog.conf 2&gt;/dev/null | tee "$IR_DIR/logs/syslog.conf.txt"
+find /etc/rsyslog.d -type f -maxdepth 1 -exec sed -n '1,200p' {} \; 2&gt;/dev/null | tee "$IR_DIR/logs/rsyslog_d.txt"
+cat /etc/logrotate.conf 2&gt;/dev/null | tee "$IR_DIR/logs/logrotate.conf.txt"
+find /etc/logrotate.d -type f -maxdepth 1 -exec sed -n '1,200p' {} \; 2&gt;/dev/null | tee "$IR_DIR/logs/logrotate_d.txt"</code></pre>
+            <h5>Auditd</h5>
+            <pre><code>cat /etc/audit/audit.rules 2&gt;/dev/null | tee "$IR_DIR/logs/audit.rules.txt"
+ausearch -ts recent -m USER_LOGIN,USER_AUTH,ADD_USER,DEL_USER,EXECVE,SERVICE_START,SERVICE_STOP 2&gt;/dev/null | tee "$IR_DIR/logs/audit_recent.txt"
+aureport -au 2&gt;/dev/null | tee "$IR_DIR/logs/aureport_auth.txt"</code></pre>
+            <ol>
+              <li>Najpierw ustal, czy logi są lokalne, zdalne czy rotowane.</li>
+              <li>Przy `systemd` sprawdź też `journal-upload` i zdalne kolektory.</li>
+              <li>Przy `syslog` sprawdź konfigurację i `logrotate`.</li>
+              <li>Przy `auditd` korzystaj z `ausearch` i `aureport`, nie tylko z surowego pliku.</li>
+            </ol>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ 6. Persistence, startup i użytkownicy</summary>
+          <div class="details-body">
+            <pre><code>systemctl list-units --type=service --all | tee "$IR_DIR/persistence/systemctl_units.txt"
+systemctl list-unit-files | tee "$IR_DIR/persistence/systemctl_unit_files.txt"
+systemctl list-timers --all | tee "$IR_DIR/persistence/systemd_timers.txt"
+cat /etc/crontab | tee "$IR_DIR/persistence/crontab.txt"
+for u in $(cut -d: -f1 /etc/passwd); do crontab -u "$u" -l 2&gt;/dev/null | sed "s#^#[$u] #"; done | tee "$IR_DIR/persistence/user_crontabs.txt"
+ls -la /etc/cron* /var/spool/cron /var/spool/cron/crontabs 2&gt;/dev/null | tee "$IR_DIR/persistence/cron_dirs.txt"
+cat /etc/sudoers | tee "$IR_DIR/users/sudoers.txt"
+ls -la /etc/sudoers.d | tee "$IR_DIR/users/sudoers_d.txt"
+find /root /home -maxdepth 3 -type f \( -name authorized_keys -o -name known_hosts -o -name .bash_history \) -exec ls -la {} \; -exec sed -n '1,200p' {} \; | tee "$IR_DIR/users/user_key_material.txt"</code></pre>
+            <ol>
+              <li>Zabezpiecz usługi, timery, cron i źródła startupu.</li>
+              <li>Zbierz `sudoers`, `authorized_keys`, `known_hosts` i historię poleceń.</li>
+            </ol>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ 7. Pliki, ostatnie zmiany i webroot</summary>
+          <div class="details-body">
+            <pre><code>find / -xdev -type f -mtime -7 -printf '%TY-%Tm-%Td %TT %u %g %m %s %p\n' 2&gt;/dev/null | sort | tee "$IR_DIR/fs/recent_files_7d.txt"
+find /tmp /var/tmp /dev/shm -maxdepth 3 -type f -printf '%TY-%Tm-%Td %TT %u %g %m %s %p\n' 2&gt;/dev/null | sort | tee "$IR_DIR/fs/tmp_files.txt"
+find / -xdev -perm -4000 -type f -print 2&gt;/dev/null | tee "$IR_DIR/fs/suid.txt"
+getcap -r / 2&gt;/dev/null | tee "$IR_DIR/fs/file_capabilities.txt"
+grep -Rni 'LD_PRELOAD\|LD_LIBRARY_PATH' /etc /root /home 2&gt;/dev/null | tee "$IR_DIR/fs/ld_preload_hits.txt"
+find /var/www /srv/www /usr/share/nginx/html /var/www/html /opt -type f -printf '%TY-%Tm-%Td %TT %s %p\n' 2&gt;/dev/null | sort | tee "$IR_DIR/web/web_files.txt"
+grep -RniE 'eval\(|base64_decode\(|assert\(|system\(|shell_exec\(|passthru\(|exec\(|/bin/sh|/bin/bash|python -c|perl -e|gzinflate\(' /var/www /srv/www /usr/share/nginx/html /var/www/html 2&gt;/dev/null | tee "$IR_DIR/web/webshell_hits.txt"</code></pre>
+            <ol>
+              <li>Zabezpiecz świeżo zmienione pliki, katalogi tymczasowe i atrybuty SUID/capabilities.</li>
+              <li>Przeszukaj webroot pod kątem webshelli i prostych obfuskacji.</li>
+            </ol>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ 8. Obrazowanie i pakowanie</summary>
+          <div class="details-body">
+            <pre><code>fdisk -l | tee "$IR_DIR/fs/fdisk_l.txt"
+lsblk -a | tee "$IR_DIR/fs/lsblk.txt"
+blkid | tee "$IR_DIR/fs/blkid.txt"
+find "$IR_DIR" -type f -exec sha256sum {} \; | tee "$IR_DIR/hashes/sha256_all.txt"
+tar -czf "/root/${CASE}.tgz" "$IR_DIR"
+sha256sum "/root/${CASE}.tgz" | tee "/root/${CASE}.tgz.sha256"</code></pre>
+            <ol>
+              <li>Zbierz inwentarz nośników i partycji.</li>
+              <li>Policz hashe wszystkich artefaktów.</li>
+              <li>Spakuj całość do jednego archiwum i policz hash archiwum.</li>
+            </ol>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ Linux / Unix: czego szukać konkretnie</summary>
+          <div class="details-body">
+            <pre><code>- reverse shell: nc, ncat, socat, bash -i, python -c, perl -e
+- nietypowy outbound do Internetu z serwera, który zwykle nie wychodzi
+- nowe klucze SSH i nowe wpisy w authorized_keys
+- nowa usługa systemd, timer, cron lub wpis w shell profile
+- proces z usuniętym plikiem, memfd, nietypowymi capabilities lub LD_PRELOAD
+- logi wysyłane do zdalnego kolektora, którego wcześniej nie znano
+- ślady exfilu w /var/log, webserverach, tunelach, scp/rsync/curl/wget</code></pre>
+          </div>
+        </details>
+      </section>
+
+      <section id="windows">
+        <h3>Windows / Windows Server: Algorytm od Początku do Końca</h3>
+
+        <div class="grid-2">
+          <div class="card">
+            <h5>Priorytety zabezpieczenia</h5>
+            <ul>
+              <li>dane ulotne z uruchomionej maszyny</li>
+              <li>dzienniki EVTX</li>
+              <li>logi IIS</li>
+              <li>klucz odzyskiwania BitLocker</li>
+              <li>Amcache.hve</li>
+              <li>SAM, SYSTEM, SOFTWARE, SECURITY</li>
+              <li>NTUSER.dat i UsrClass.dat</li>
+              <li>Jump Lists</li>
+              <li>Prefetch</li>
+              <li>SRUDB.dat</li>
+              <li>$MFT i $UsnJrnl</li>
+              <li>NTDS.dit na kontrolerach domeny</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h5>Na co polować</h5>
+            <ul>
+              <li>4624, 4625, 4648, 4672</li>
+              <li>4697, 4698, 4702, 7045, 1102</li>
+              <li>4688 i Sysmon 1</li>
+              <li>PowerShell, WMI, Task Scheduler, Defender, RDP, SMB</li>
+              <li>Run/RunOnce, scheduled tasks, usługi z Temp/AppData/ProgramData</li>
+              <li>Prefetch, Amcache, Jump Lists, UserAssist, RecentDocs, SRUM</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="table-wrap" style="margin-top:18px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Grupa artefaktów Windows</th>
+                <th>Co zabezpieczyć</th>
+                <th>Jaką odpowiedź to daje</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Volatile evidence</td>
+                <td>sesje, procesy, cmdline, połączenia, firewall, schowek, uptime</td>
+                <td>co działało na hostcie w chwili reakcji</td>
+              </tr>
+              <tr>
+                <td>Identity</td>
+                <td>4624/4625/4648/4672, Kerberos/NTLM, grupy uprzywilejowane, NTDS</td>
+                <td>kto się logował, z jakich źródeł, jak rozszerzono uprawnienia</td>
+              </tr>
+              <tr>
+                <td>Execution</td>
+                <td>4688, Sysmon 1, Prefetch, Amcache, SRUM</td>
+                <td>jakie narzędzia i payloady uruchamiano</td>
+              </tr>
+              <tr>
+                <td>Persistence</td>
+                <td>services, tasks, Run/RunOnce, WMI, startup folders, registry hives</td>
+                <td>jak atakujący utrwalał dostęp</td>
+              </tr>
+              <tr>
+                <td>File system</td>
+                <td>$MFT, $UsnJrnl, $LogFile, PageFile</td>
+                <td>jak zmieniano pliki i jakie ślady zostały po usunięciu</td>
+              </tr>
+              <tr>
+                <td>User activity</td>
+                <td>Jump Lists, NTUSER, UsrClass, browser history, downloads</td>
+                <td>jakich aplikacji, plików i zasobów używano</td>
+              </tr>
+              <tr>
+                <td>Remote access</td>
+                <td>RDP logi, RDP cache, SMB access logs, IIS, HTTPERR</td>
+                <td>jak wyglądał ruch zdalny i lateral movement</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grid-3" style="margin-top:18px;">
+          <div class="card">
+            <h5>Dzienniki zdarzeń Windows</h5>
+            <p>W praktyce najważniejszy jest katalog <code>C:\Windows\System32\winevt\Logs</code>. To tam znajdują się surowe pliki EVTX dla systemu, bezpieczeństwa i aplikacji oraz dla wielu logów operacyjnych. Ich przewagą jest szybkość pozyskania, mały rozmiar względem wartości śledczej i możliwość natychmiastowej korelacji pod kątem logowań, usług, tasków, RDP, PowerShell i Defendera.</p>
+            <p style="margin-top:10px;"><a href="https://www.sans.org/tools/evtxecmd/" target="_blank" rel="noopener noreferrer">EvtxECmd</a> oraz <a href="https://www.sans.org/tools/timeline-explorer/" target="_blank" rel="noopener noreferrer">Timeline Explorer</a></p>
+          </div>
+          <div class="card">
+            <h5>Jump Lists</h5>
+            <p>Jump Lists przechowują ślady ostatnio otwieranych plików i aplikacji przez konkretnego użytkownika. W IR są przydatne wtedy, gdy chcesz ustalić, czy operator otwierał konkretne dokumenty, narzędzia, archiwa lub skrypty. Szczególnie dobrze uzupełniają Prefetch i rejestr użytkownika.</p>
+            <p style="margin-top:10px;"><a href="https://ericzimmerman.github.io/#!index.md" target="_blank" rel="noopener noreferrer">JLECmd w pakiecie Zimmermana</a></p>
+          </div>
+          <div class="card">
+            <h5>BitLocker recovery</h5>
+            <p>Przy hostach szyfrowanych samo wykonanie obrazu nie gwarantuje jeszcze, że uzyskasz dostęp do danych. Recovery key lub inne recovery material potrafią przesądzić o tym, czy obraz będzie użyteczny analitycznie. Dlatego przy działającym hoście trzeba potraktować klucz BitLocker jako artefakt krytyczny, równorzędny z logami i danymi ulotnymi.</p>
+            <p style="margin-top:10px;"><a href="https://learn.microsoft.com/en-us/windows/security/operating-system-security/data-protection/bitlocker/recovery-overview" target="_blank" rel="noopener noreferrer">Microsoft Learn: BitLocker recovery overview</a></p>
+          </div>
+        </div>
+
+        <details open style="margin-top:18px;">
+          <summary>▾ 1. Przygotuj katalog sprawy</summary>
+          <div class="details-body">
+            <pre><code>$Case="IR_$env:COMPUTERNAME"+"_"+(Get-Date -Format "yyyy-MM-dd_HHmmss")
+$IR="C:\$Case"
+New-Item -ItemType Directory -Force -Path $IR,$IR\live,$IR\users,$IR\proc,$IR\net,$IR\persistence,$IR\logs,$IR\fs,$IR\web | Out-Null
+Start-Transcript -Path "$IR\live\transcript.txt" -Force
+Get-Date -Format o | Tee-Object "$IR\live\date.txt"
+hostname | Tee-Object "$IR\live\hostname.txt"
+systeminfo | Out-File "$IR\live\systeminfo.txt"</code></pre>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ 2. Dane ulotne, użytkownicy, procesy</summary>
+          <div class="details-body">
+            <pre><code>whoami /all &gt; "%IR%\users\whoami_all.txt"
+query user &gt; "%IR%\users\query_user.txt"
+quser &gt; "%IR%\users\quser.txt"
+qwinsta &gt; "%IR%\users\qwinsta.txt"
+net user &gt; "%IR%\users\net_user.txt"
+net localgroup administrators &gt; "%IR%\users\local_admins.txt"
+tasklist &gt; "%IR%\proc\tasklist.txt"
+tasklist /svc &gt; "%IR%\proc\tasklist_svc.txt"
+wmic process get ProcessId,ParentProcessId,Name,ExecutablePath,CommandLine /format:list &gt; "%IR%\proc\wmic_process.txt"
+netstat -ano &gt; "%IR%\net\netstat_ano.txt"
+arp -a &gt; "%IR%\net\arp.txt"
+route print &gt; "%IR%\net\route_print.txt"
+ipconfig /all &gt; "%IR%\net\ipconfig_all.txt"</code></pre>
+            <pre><code>Get-ComputerInfo | Out-File "$IR\live\Get-ComputerInfo.txt"
+Get-LocalUser | Format-List * | Out-File "$IR\users\Get-LocalUser.txt"
+Get-CimInstance Win32_Process | Select-Object Name,ProcessId,ParentProcessId,ExecutablePath,CommandLine,CreationDate | Format-List | Out-File "$IR\proc\Win32_Process.txt"
+Get-NetTCPConnection | Sort-Object LocalPort | Format-Table -Auto | Out-File "$IR\net\Get-NetTCPConnection.txt"
+Get-WinEvent -LogName 'Microsoft-Windows-Windows Firewall With Advanced Security/Firewall' -MaxEvents 500 | Format-List | Out-File "$IR\logs\Firewall_500.txt"</code></pre>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ 3. Dzienniki zdarzeń i logi IIS</summary>
+          <div class="details-body">
+            <pre><code>wevtutil epl Security "%IR%\logs\Security.evtx"
+wevtutil epl System "%IR%\logs\System.evtx"
+wevtutil epl Application "%IR%\logs\Application.evtx"</code></pre>
+            <pre><code>Get-WinEvent -LogName Security -MaxEvents 1000 | Format-List | Out-File "$IR\logs\Security_1000.txt"
+Get-WinEvent -LogName System -MaxEvents 1000 | Format-List | Out-File "$IR\logs\System_1000.txt"
+Get-WinEvent -LogName Application -MaxEvents 1000 | Format-List | Out-File "$IR\logs\Application_1000.txt"
+Get-ChildItem 'C:\inetpub\logs\LogFiles' -Recurse -ErrorAction SilentlyContinue | Select-Object FullName,LastWriteTime,Length | Out-File "$IR\web\iis_log_inventory.txt"</code></pre>
+            <ol>
+              <li>Najpierw wyeksportuj surowe `EVTX`.</li>
+              <li>Następnie zabezpiecz tekstowy podgląd kluczowych logów i inwentarz logów IIS.</li>
+            </ol>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ 4. Persistence i artefakty użytkownika</summary>
+          <div class="details-body">
+            <pre><code>sc query state= all &gt; "%IR%\persistence\sc_query_all.txt"
+schtasks /query /fo LIST /v &gt; "%IR%\persistence\schtasks.txt"
+reg query HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run &gt; "%IR%\persistence\run_hklm.txt"
+reg query HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run &gt; "%IR%\persistence\run_hkcu.txt"
+dir /s /b "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup" &gt; "%IR%\persistence\startup_programdata.txt"</code></pre>
+            <pre><code>Get-CimInstance Win32_Service | Select-Object Name,State,StartMode,ProcessId,PathName | Format-List | Out-File "$IR\proc\Win32_Service.txt"
+Get-ScheduledTask | Select-Object TaskName,TaskPath,State,Author,Description | Format-List | Out-File "$IR\persistence\Get-ScheduledTask.txt"
+Get-CimInstance Win32_StartupCommand | Select-Object Name,Command,Location,User | Format-List | Out-File "$IR\persistence\Win32_StartupCommand.txt"</code></pre>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ 5. Artefakty dyskowe Windows do natychmiastowego kopiowania</summary>
+          <div class="details-body">
+            <pre><code>EVTX:
+C:\Windows\System32\winevt\Logs
+
+IIS:
+C:\inetpub\logs\LogFiles
+
+Amcache:
+C:\Windows\AppCompat\Programs\Amcache.hve
+
+Prefetch:
+C:\Windows\Prefetch
+
+SRUM:
+C:\Windows\System32\sru
+
+UAL:
+C:\Windows\System32\LogFiles\sum
+
+Jump Lists:
+C:\Users\&lt;user&gt;\AppData\Roaming\Microsoft\Windows\Recent\AutomaticDestinations
+C:\Users\&lt;user&gt;\AppData\Roaming\Microsoft\Windows\Recent\CustomDestinations
+
+RDP cache:
+C:\Users\&lt;user&gt;\AppData\Local\Microsoft\Terminal Server Client\Cache
+
+NTUSER / UsrClass:
+C:\Users\&lt;user&gt;\NTUSER.dat
+C:\Users\&lt;user&gt;\AppData\Local\Microsoft\Windows\UsrClass.dat
+
+Rejestry systemowe:
+HKLM\SAM
+HKLM\SYSTEM
+HKLM\SOFTWARE
+HKLM\SECURITY
+
+AD:
+C:\Windows\NTDS\ntds.dit</code></pre>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ 6. BitLocker i obrazowanie</summary>
+          <div class="details-body">
+            <pre><code>Get-BitLockerVolume | Format-List * | Out-File "$IR\live\Get-BitLockerVolume.txt"
+manage-bde -status &gt; "$IR\live\manage-bde-status.txt"
+manage-bde -protectors -get C: &gt; "$IR\live\manage-bde-protectors-C.txt"</code></pre>
+            <ol>
+              <li>Przed odłączeniem lub obrazowaniem nośnika zabezpiecz recovery key.</li>
+              <li>Przy hostach szyfrowanych potraktuj recovery key jako artefakt krytyczny.</li>
+              <li>Na hostach wirtualizacyjnych i backupowych szukaj też sekretów warstwy storage i backup.</li>
+            </ol>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ 7. Procedura operacyjna: Windows krok po kroku</summary>
+          <div class="details-body">
+            <ol>
+              <li>Utwórz katalog sprawy i uruchom transcript.</li>
+              <li>Zbierz dane ulotne: użytkownicy, sesje, procesy, cmdline, połączenia.</li>
+              <li>Wyeksportuj `EVTX` i zabezpiecz logi IIS, jeśli host jest webserverem.</li>
+              <li>Zabezpiecz persistence: usługi, taski, startup, Run/RunOnce.</li>
+              <li>Skopiuj artefakty dyskowe: Amcache, Prefetch, Jump Lists, SRUM, rejestry.</li>
+              <li>Zabezpiecz recovery key BitLocker i dane o protectorach.</li>
+              <li>Dopiero potem przechodź do pełnego obrazowania i containment.</li>
+            </ol>
+          </div>
+        </details>
+      </section>
+
+      <section id="closeout">
+        <h3>Containment, Eradication i Recovery</h3>
+        <div class="grid-3">
+          <div class="card">
+            <h5>Containment</h5>
+            <ul>
+              <li>blokada kont i tokenów</li>
+              <li>izolacja hostów po zabezpieczeniu najcenniejszych danych</li>
+              <li>blokada IP, domen, portów i tuneli C2</li>
+              <li>segmentacja awaryjna i odcięcie podatnych usług publicznych</li>
+              <li>wycofanie dostępu dostawców i kont serwisowych bez ownera</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h5>Eradication</h5>
+            <ul>
+              <li>usuń webshell, usługę, task, wpis startup, klucz, konto, tunel, regułę, implant</li>
+              <li>przywróć poprawną konfigurację edge, VPN, RDP, IIS i GPO</li>
+              <li>usuń nadmierne uprawnienia i stare ścieżki zaufania</li>
+              <li>napraw retencję i forwarding logów</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h5>Recovery</h5>
+            <ul>
+              <li>rotacja haseł, kluczy SSH, poświadczeń serwisowych i recovery secrets</li>
+              <li>przywrócenie MFA i dostępu uprzywilejowanego</li>
+              <li>odtworzenie z backupów po walidacji i sprawdzeniu czystości</li>
+              <li>wzbogacenie telemetryki host, edge, AD, proxy, SaaS i browser</li>
+            </ul>
+          </div>
+        </div>
+
+        <h4>Lessons learned: co poprawić po incydencie</h4>
+        <div class="pill-list">
+          <span class="pill">centralizacja logów</span>
+          <span class="pill">retencja i forwarding</span>
+          <span class="pill">segmentacja</span>
+          <span class="pill">IAM i least privilege</span>
+          <span class="pill">procedury hypervisorów</span>
+          <span class="pill">backup security</span>
+          <span class="pill">nośniki live i adaptery</span>
+          <span class="pill">telemetria browser / SaaS / identity</span>
+        </div>
+
+        <details open style="margin-top:18px;">
+          <summary>Krótka checklista końcowa</summary>
+          <div class="details-body">
+            <pre><code>[ ] ustalono wektor lub hipotezy wejścia
+[ ] zabezpieczono logi lokalne, centralne i sieciowe
+[ ] zabezpieczono volatile evidence na systemach pracujących
+[ ] zabezpieczono artefakty użytkownika i systemowe
+[ ] zabezpieczono backupy oraz warstwę wirtualizacji
+[ ] policzono hashe i opisano chain of custody
+[ ] zbudowano timeline i scope
+[ ] wdrożono containment dla hostów, kont i segmentów
+[ ] przygotowano plan eradication i recovery
+[ ] zapisano lesson learned oraz działania naprawcze</code></pre>
+          </div>
+        </details>
+      </section>
+
+      <div class="footer">
+        Incident response cheatsheet 2026 • pełna wersja HTML zsynchronizowana z Markdownem
+      </div>
+    </main>
+  </div>
+</body>
+</html>
