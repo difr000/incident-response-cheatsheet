@@ -546,6 +546,7 @@
         <a href="#cloud">AWS i Azure IR</a>
         <a href="#ti">Threat Intel i ransomware</a>
         <a href="#ot">OT / ICS DFIR</a>
+        <a href="#memory">Memory forensics</a>
         <a href="#extended">Rozszerzone artefakty</a>
         <a href="#closeout">Containment i recovery</a>
       </nav>
@@ -2056,6 +2057,387 @@ grep -RniE 'rclone|mega|7z|rar|openssl enc|gpg --batch|shred|wipe|srm|rm -rf|cur
 8. Nie wykonuj containment, który może zatrzymać proces technologiczny, bez decyzji safety/business.</code></pre>
           </div>
         </details>
+      </section>
+
+      <section id="memory">
+        <h3>Live Response i Memory Forensics</h3>
+        <p>
+          Ta sekcja rozszerza fazy reagowania o akwizycję RAM, zrzuty procesów, analizę Volatility/Rekall oraz triage danych JSON, SQLite i artefaktów Windows/Linux. Pamięć zabezpieczaj szczególnie wtedy, gdy podejrzewasz malware fileless, process injection, credential theft, aktywny C2, ransomware w trakcie działania, ukryte procesy, rootkity lub usunięte z dysku binarki nadal działające jako proces.
+        </p>
+
+        <div class="callout">
+          <strong>Uwaga dowodowa:</strong> zrzuty RAM i procesów mogą zawierać hasła, tokeny, cookies, klucze sesyjne, sekrety cloud, dane osobowe i materiał szczególnie wrażliwy. Zrzuty <code>lsass.exe</code>, przeglądarek, VPN, narzędzi administracyjnych i agentów bezpieczeństwa wykonuj tylko na podstawie upoważnienia, przechowuj na szyfrowanym nośniku i hashuj od razu po akwizycji.
+        </div>
+
+        <h4>Kolejność zabezpieczania danych ulotnych</h4>
+        <pre><code>1. Udokumentuj czas, timezone, hostname, IP, użytkownika, osobę wykonującą czynność i narzędzie.
+2. Zrób zdjęcia ekranu, aktywnych komunikatów, konsoli, EDR i stanu VM/hipervisora.
+3. Zabezpiecz sieć logicznie, ale nie wyłączaj hosta, jeśli RAM ma wartość dowodową.
+4. Zbierz aktywne procesy, cmdline, parent PID, hashe, usługi, sesje, połączenia i logi.
+5. Zrób zrzut RAM lub snapshot pamięci VM, jeśli jest to bezpieczne i zatwierdzone.
+6. Zabezpiecz pagefile, swap, hiberfil, crash dump, core dump, journale i logi centralne.
+7. Zabezpiecz obraz dysku lub snapshot wolumenu.
+8. Hashuj każdy artefakt i dopisz go do chain of custody.</code></pre>
+
+        <div class="grid-2">
+          <div class="card">
+            <h5>Toolkit Windows</h5>
+            <ul>
+              <li>Sysinternals: PsList, PsLoggedOn, PsFile, Autoruns, ProcDump, Strings, Handle, TCPView, RAMMap.</li>
+              <li>Memory acquisition: WinPmem, FTK Imager, DumpIt, Magnet RAM Capture, Belkasoft RAM Capturer.</li>
+              <li>Artifact collection: KAPE, Eric Zimmerman Tools, EvtxECmd, MFTECmd, PECmd, LECmd, JLECmd.</li>
+              <li>Hashing i transport: md5deep/sha256deep, certutil, PowerShell Get-FileHash, szyfrowany nośnik dowodowy.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h5>Toolkit Linux / Unix</h5>
+            <ul>
+              <li>Live triage: ps, ss, lsof, ip, who, last, journalctl, auditctl, tcpdump, rsync.</li>
+              <li>Memory acquisition: AVML, LiME, gcore, zatwierdzone binarki statyczne, profile/symbole Volatility.</li>
+              <li>Analysis: Volatility 3, YARA, bulk_extractor, strings, jq, sqlite3, Sleuth Kit, SIFT Workstation.</li>
+              <li>Disk and timeline: dd, dcfldd/dc3dd, mmls, fsstat, fls, mactime, blkls, foremost.</li>
+            </ul>
+          </div>
+        </div>
+
+        <details open>
+          <summary>▾ Przygotowanie nośnika IR i hash narzędzi</summary>
+          <div class="details-body">
+            <pre><code># Linux: wyzerowanie nośnika dowodowego - upewnij się, że /dev/sdX to właściwy dysk
+sudo dd if=/dev/zero of=/dev/sdX bs=1M status=progress conv=fsync
+
+# Linux: zapis hashy narzędzi na nośniku IR
+find /mnt/ir-toolkit -type f -maxdepth 3 -print0 | xargs -0 sha256sum | tee /mnt/ir-toolkit/tool_hashes_sha256.txt</code></pre>
+            <pre><code># Windows PowerShell: format nośnika dowodowego i hashe toolkitu
+Format-Volume -DriveLetter E -FileSystem exFAT -NewFileSystemLabel IR_EVIDENCE -Full
+
+Get-ChildItem E:\IR-Toolkit -Recurse -File |
+  Get-FileHash -Algorithm SHA256 |
+  Export-Csv E:\IR-Toolkit\tool_hashes_sha256.csv -NoTypeInformation</code></pre>
+          </div>
+        </details>
+
+        <h4>Windows: akwizycja RAM i process dump</h4>
+        <div class="grid-2">
+          <div class="card">
+            <h5>Start katalogu sprawy</h5>
+            <pre><code>$IR = "C:\IR"
+New-Item -ItemType Directory -Force -Path "$IR\memory","$IR\processes","$IR\hashes","$IR\logs" | Out-Null
+Get-Date -Format o | Out-File "$IR\case_start_time.txt"
+hostname | Out-File "$IR\hostname.txt"
+whoami /all | Out-File "$IR\whoami_all.txt"
+systeminfo | Out-File "$IR\systeminfo.txt"</code></pre>
+          </div>
+          <div class="card">
+            <h5>WinPmem / FTK / DumpIt</h5>
+            <pre><code>:: WinPmem: AFF4
+winpmem_mini_x64.exe -o C:\IR\memory\host.aff4
+
+:: WinPmem: z pagefile
+winpmem_mini_x64.exe -p C:\pagefile.sys -o C:\IR\memory\host_with_pagefile.aff4
+
+:: Eksport PhysicalMemory z AFF4 do RAW
+winpmem_mini_x64.exe C:\IR\memory\host.aff4 --export PhysicalMemory -o C:\IR\memory\host.raw
+
+:: FTK Imager GUI: File -&gt; Capture Memory, zaznacz Include pagefile.
+:: DumpIt / Magnet RAM Capture / Belkasoft RAM Capturer uruchamiaj jako Administrator.</code></pre>
+          </div>
+        </div>
+
+        <details open>
+          <summary>▾ Windows: procesy, moduły i pełne zrzuty procesów</summary>
+          <div class="details-body">
+            <pre><code>:: Triage procesów przed dumpem
+tasklist /v &gt; C:\IR\processes\tasklist_v.txt
+tasklist /m &gt; C:\IR\processes\tasklist_modules.txt
+wmic process get Name,ProcessId,ParentProcessId,ExecutablePath,CommandLine /format:csv &gt; C:\IR\processes\wmic_process_cmdline.csv
+powershell -NoProfile -Command "Get-Process | Select-Object Id,ProcessName,Path,StartTime,Company,Description | Export-Csv C:\IR\processes\get_process.csv -NoTypeInformation"
+
+:: ProcDump: pełny zrzut procesu
+procdump64.exe -accepteula -ma &lt;PID&gt; C:\IR\processes\proc_&lt;PID&gt;.dmp
+procdump64.exe -accepteula -ma suspicious.exe C:\IR\processes\suspicious_full.dmp
+
+:: comsvcs MiniDump: awaryjnie, gdy ProcDump nie jest dostępny
+rundll32.exe C:\Windows\System32\comsvcs.dll, MiniDump &lt;PID&gt; C:\IR\processes\proc_&lt;PID&gt;_comsvcs.dmp full</code></pre>
+            <pre><code># PowerShell: LSASS tylko za zgodą, bo dump zawiera materiał poświadczeniowy
+$lsass = Get-Process lsass
+.\procdump64.exe -accepteula -ma $lsass.Id C:\IR\processes\lsass.dmp
+Get-FileHash C:\IR\processes\*.dmp -Algorithm SHA256 |
+  Export-Csv C:\IR\hashes\process_dumps_sha256.csv -NoTypeInformation</code></pre>
+          </div>
+        </details>
+
+        <div class="table-wrap" style="margin-top:12px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Źródło pamięci Windows</th>
+                <th>Znaczenie</th>
+                <th>Uwagi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>%SystemDrive%\hiberfil.sys</code></td><td>Hibernacja, skompresowane fragmenty RAM.</td><td>Często odzyskiwana z Volume Shadow Copies; konwersja możliwa przez Volatility 2 <code>imagecopy</code>.</td></tr>
+              <tr><td><code>%SystemDrive%\pagefile.sys</code></td><td>Pamięć stronicowana, stringi, fragmenty procesów.</td><td>Najlepiej zabezpieczać z obrazu dysku lub snapshotu, nie przez zwykłe kopiowanie live.</td></tr>
+              <tr><td><code>%SystemDrive%\swapfile.sys</code></td><td>Windows 8/2012+, pamięć wymiany aplikacji.</td><td>Przydatne przy analizie aplikacji modern/UWP i przeglądarek.</td></tr>
+              <tr><td><code>%WINDIR%\MEMORY.DMP</code></td><td>Crash dump po bugcheck.</td><td>Może zawierać materiał z momentu awarii lub ataku na kernel/driver.</td></tr>
+              <tr><td>VM snapshot / hypervisor dump</td><td>Pamięć VM bez uruchamiania narzędzi w gościu.</td><td>Preferowane w środowiskach wirtualnych, jeśli platforma zachowuje integralność i metadane.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>Linux / Unix: RAM, core dump i dane ulotne</h4>
+        <div class="grid-2">
+          <div class="card">
+            <h5>Katalog sprawy i live triage</h5>
+            <pre><code>export IR_DIR="/mnt/ir/$(hostname)_$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -p "$IR_DIR"/{live,processes,network,logs,hashes}
+date -u +"%Y-%m-%dT%H:%M:%SZ" | tee "$IR_DIR/case_start_utc.txt"
+hostnamectl 2&gt;/dev/null | tee "$IR_DIR/live/hostnamectl.txt"
+uname -a | tee "$IR_DIR/live/uname.txt"
+id | tee "$IR_DIR/live/responder_id.txt"
+
+ps auxwwf | tee "$IR_DIR/processes/ps_auxwwf.txt"
+ps -eo pid,ppid,user,lstart,etime,stat,comm,args --forest | tee "$IR_DIR/processes/ps_forest.txt"
+sudo lsof -nP | tee "$IR_DIR/processes/lsof_all.txt"
+sudo lsof -nP -i | tee "$IR_DIR/network/lsof_i.txt"
+ss -tunap | tee "$IR_DIR/network/ss_tunap.txt"
+ip addr | tee "$IR_DIR/network/ip_addr.txt"
+ip route | tee "$IR_DIR/network/ip_route.txt"
+ip neigh | tee "$IR_DIR/network/ip_neigh.txt"</code></pre>
+          </div>
+          <div class="card">
+            <h5>AVML i LiME</h5>
+            <pre><code># AVML: zrzut pamięci z kompresją
+chmod +x ./avml
+sudo ./avml --compress "$IR_DIR/live/memory_$(hostname)_$(date -u +%Y%m%dT%H%M%SZ).lime.compressed"
+sha256sum "$IR_DIR"/live/memory_* | tee "$IR_DIR/hashes/memory_sha256.txt"
+
+# LiME: tylko moduł zbudowany dla właściwego kernela
+sudo insmod ./lime.ko "path=$IR_DIR/live/memory_$(hostname).lime format=lime"
+sync
+sudo rmmod lime
+sha256sum "$IR_DIR/live/memory_$(hostname).lime" | tee "$IR_DIR/hashes/lime_sha256.txt"</code></pre>
+          </div>
+        </div>
+
+        <details open>
+          <summary>▾ Linux: zrzut konkretnego procesu i snapshot /proc</summary>
+          <div class="details-body">
+            <pre><code># Gcore: pełny core dump konkretnego procesu
+PID=&lt;PID&gt;
+sudo mkdir -p "$IR_DIR/processes/pid_$PID"
+sudo gcore -o "$IR_DIR/processes/pid_$PID/core" "$PID"
+sudo cp -a "/proc/$PID/maps" "/proc/$PID/smaps" "/proc/$PID/status" "$IR_DIR/processes/pid_$PID/" 2&gt;/dev/null
+sudo tr '\0' '\n' &lt; "/proc/$PID/environ" | tee "$IR_DIR/processes/pid_$PID/environ.txt" &gt;/dev/null
+sudo tr '\0' ' ' &lt; "/proc/$PID/cmdline" | tee "$IR_DIR/processes/pid_$PID/cmdline.txt" &gt;/dev/null
+sudo ls -la "/proc/$PID/fd" | tee "$IR_DIR/processes/pid_$PID/fd_listing.txt"
+sudo sha256sum "$IR_DIR/processes/pid_$PID"/core.* | tee "$IR_DIR/hashes/core_${PID}_sha256.txt"
+
+# Masowy snapshot PID, exe i cmdline
+for p in /proc/[0-9]*; do
+  pid="${p##*/}"
+  exe="$(readlink -f "$p/exe" 2&gt;/dev/null || true)"
+  cmd="$(tr '\0' ' ' &lt; "$p/cmdline" 2&gt;/dev/null || true)"
+  printf '%s\t%s\t%s\n' "$pid" "$exe" "$cmd"
+done | tee "$IR_DIR/processes/proc_pid_exe_cmdline.tsv"</code></pre>
+          </div>
+        </details>
+
+        <h4>Volatility 3: workflow Windows</h4>
+        <pre><code># Rozpoznanie obrazu i procesy
+python3 vol.py -f memory.raw windows.info
+python3 vol.py -f memory.raw windows.pslist
+python3 vol.py -f memory.raw windows.pstree
+python3 vol.py -f memory.raw windows.psscan
+python3 vol.py -f memory.raw windows.psxview
+
+# Procesy, konta i zmienne środowiskowe
+python3 vol.py -f memory.raw windows.cmdline
+python3 vol.py -f memory.raw windows.envars
+python3 vol.py -f memory.raw windows.getsids
+
+# Sieć, DLL i uchwyty
+python3 vol.py -f memory.raw windows.netscan
+python3 vol.py -f memory.raw windows.handles --pid &lt;PID&gt;
+python3 vol.py -f memory.raw windows.dlllist --pid &lt;PID&gt;
+
+# Wstrzyknięcia, VAD i ukryte moduły
+python3 vol.py -f memory.raw windows.malfind
+python3 vol.py -f memory.raw windows.vadinfo --pid &lt;PID&gt;
+python3 vol.py -f memory.raw windows.ldrmodules --pid &lt;PID&gt;
+
+# Rejestr, dump plików i YARA
+python3 vol.py -f memory.raw windows.registry.hivelist
+python3 vol.py -f memory.raw windows.registry.printkey --key "Software\Microsoft\Windows\CurrentVersion\Run"
+mkdir -p ./dumpfiles ./yarascan
+python3 vol.py -f memory.raw windows.dumpfiles --pid &lt;PID&gt; --dump-dir ./dumpfiles
+python3 vol.py -f memory.raw yarascan.YaraScan --yara-rules 'rule hit { strings: $a="powershell" nocase $b="mimikatz" nocase condition: any of them }'</code></pre>
+
+        <details open>
+          <summary>▾ Volatility 2: starsze obrazy i pluginy nadal spotykane w dokumentacji</summary>
+          <div class="details-body">
+            <pre><code>vol.py -f mem.img imageinfo
+vol.py -f mem.img kdbgscan
+export VOLATILITY_LOCATION=file:///cases/mem.img
+export VOLATILITY_PROFILE=Win10x64_14393
+
+vol.py pslist
+vol.py psscan
+vol.py pstree
+vol.py psxview
+vol.py dlllist -p &lt;PID&gt;
+vol.py handles -p &lt;PID&gt; -t File,Key,Process,Thread,Mutant,Token
+vol.py getsids -p &lt;PID&gt;
+vol.py netscan
+vol.py cmdline
+vol.py cmdscan
+vol.py consoles
+vol.py malfind -p &lt;PID&gt; --dump-dir ./malfind
+vol.py ldrmodules -p &lt;PID&gt; -v
+vol.py svcscan -v
+vol.py modscan
+vol.py apihooks -Q
+vol.py ssdt | egrep -v '(ntoskrnl|win32k)'
+vol.py procdump --dump-dir ./procdump -p &lt;PID&gt;
+vol.py memdump --dump-dir ./memdump -p &lt;PID&gt;
+vol.py dlldump --dump-dir ./dlldump -p &lt;PID&gt;
+vol.py dumpfiles -n -i -r '\\.exe' --dump-dir ./dumpfiles
+vol.py timeliner --output=body --output-file memory.body</code></pre>
+          </div>
+        </details>
+
+        <h4>Volatility 3: workflow Linux</h4>
+        <pre><code># Linux wymaga symboli zgodnych z kernelem obrazu
+python3 vol.py -f memory.lime linux.banners
+python3 vol.py -f memory.lime linux.pslist
+python3 vol.py -f memory.lime linux.pstree
+python3 vol.py -f memory.lime linux.psaux
+python3 vol.py -f memory.lime linux.bash
+python3 vol.py -f memory.lime linux.lsof
+python3 vol.py -f memory.lime linux.sockstat
+python3 vol.py -f memory.lime linux.mountinfo
+python3 vol.py -f memory.lime linux.malfind
+python3 vol.py -f memory.lime linux.check_modules
+python3 vol.py -f memory.lime linux.hidden_modules</code></pre>
+
+        <details open>
+          <summary>▾ Rekall: AFF4 i starsze workflow SANS</summary>
+          <div class="details-body">
+            <pre><code># Jednorazowe komendy
+rekal -f host.aff4 imageinfo
+rekal -f host.aff4 pslist
+rekal -f host.aff4 pstree
+rekal -f host.aff4 netscan
+rekal -f host.aff4 malfind
+
+# Sesja interaktywna
+rekal -f host.aff4</code></pre>
+            <pre><code># Przykładowe komendy w sesji Rekall
+pslist
+describe(pslist)
+select EPROCESS,ppid,process_create_time from pslist() order by process_create_time
+select _EPROCESS,ppid,cmd,path from pstree()
+dlllist 1580
+handles 868, object_types="Key"
+netscan
+dns_cache
+malfind eprocess=0x853cf460, dump_dir="/cases"
+ldrmodules 1936
+procdump proc_regex="csrss", dump_dir="/tmp"
+memdump 1004,dump_dir="./output"</code></pre>
+          </div>
+        </details>
+
+        <h4>Strings, YARA i bulk_extractor na RAM</h4>
+        <pre><code># Linux/SIFT: stringi ASCII i UTF-16LE
+strings -a -n 6 memory.raw | tee strings_ascii.txt
+strings -a -el -n 6 memory.raw | tee strings_utf16le.txt
+
+# Typowe wskaźniki
+rg -i "mimikatz|sekurlsa|rclone|mega|ngrok|cloudflared|powershell|encodedcommand|token|password|aws_access_key|azure|ssh-rsa" strings_ascii.txt strings_utf16le.txt
+rg -o "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" strings_ascii.txt | sort -u | tee indicators_ips.txt
+rg -o "https?://[^[:space:]\"']+" strings_ascii.txt strings_utf16le.txt | sort -u | tee indicators_urls.txt
+rg -o "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}" strings_ascii.txt strings_utf16le.txt | sort -u | tee indicators_emails.txt
+
+bulk_extractor -o bulk_memory memory.raw
+yara -r rules.yar memory.raw | tee yara_memory_hits.txt</code></pre>
+        <pre><code># Windows: Sysinternals Strings i Select-String
+.\strings64.exe -accepteula -nobanner -n 6 C:\IR\memory\host.raw &gt; C:\IR\memory\strings_ascii.txt
+Select-String -Path C:\IR\memory\strings_ascii.txt -Pattern "mimikatz","rclone","powershell","token","password","http" -CaseSensitive:$false |
+  Out-File C:\IR\memory\strings_hits.txt</code></pre>
+
+        <h4>SIFT, jq, SQLite i Zimmerman jako wsparcie po akwizycji</h4>
+        <div class="grid-2">
+          <div class="card">
+            <h5>Sleuth Kit, file magic i carving</h5>
+            <pre><code>mmls image.raw
+fsstat image.raw
+fls -r -m C: image.raw &gt; bodyfile_fls.txt
+mactime -b bodyfile_fls.txt -d &gt; timeline.csv
+blkls image.raw &gt; image_unallocated.blkls
+blkls -s image.raw &gt; image_slack.blkls
+foremost -o carved_unallocated image_unallocated.blkls
+
+file suspicious.bin
+xxd -l 32 suspicious.bin
+sigfind -o &lt;offset&gt; &lt;hexvalue&gt; image.raw</code></pre>
+          </div>
+          <div class="card">
+            <h5>jq i SQLite</h5>
+            <pre><code># jq: JSON z Zeek, CloudTrail, Defender, M365, EDR
+jq '.' dns.log
+jq -r '.query' dns.log
+jq -r '."id.orig_h"' dns.log
+jq 'select(.rcode_name == "NOERROR") | {src: ."id.orig_h", query, ts}' dns.log
+jq '.ts |= todate | .ts' dns.log
+jq -r '[.eventTime,.eventName,.userIdentity.arn,.sourceIPAddress,.errorCode] | @tsv' cloudtrail.json
+
+# SQLite: browsery i aplikacje
+sqlite3 History ".tables"
+sqlite3 History "SELECT url,title,last_visit_time FROM urls ORDER BY last_visit_time DESC LIMIT 50;"
+sqlite3 Cookies "SELECT host_key,name,path,expires_utc,is_secure,is_httponly FROM cookies LIMIT 50;"
+sqlite3 places.sqlite "SELECT datetime(last_visit_date/1000000,'unixepoch'), url, title FROM moz_places ORDER BY last_visit_date DESC LIMIT 50;"
+sqlite3 app.db "PRAGMA database_list; PRAGMA journal_mode; PRAGMA wal_checkpoint;"</code></pre>
+          </div>
+        </div>
+
+        <details open>
+          <summary>▾ Eric Zimmerman Tools: eksport do CSV/JSON/HTML</summary>
+          <div class="details-body">
+            <pre><code>EvtxECmd.exe -d C:\IR\logs --csv C:\IR\parsed\evtx --json C:\IR\parsed\evtx_json
+PECmd.exe -d C:\Windows\Prefetch --csv C:\IR\parsed\prefetch --json C:\IR\parsed\prefetch_json
+LECmd.exe -d C:\Users --all --csv C:\IR\parsed\lnk
+JLECmd.exe -d C:\Users --csv C:\IR\parsed\jumplists
+MFTECmd.exe -f C:\IR\fs\$MFT --csv C:\IR\parsed\mft
+RBCmd.exe -d C:\$Recycle.Bin --csv C:\IR\parsed\recyclebin
+AmcacheParser.exe -f C:\Windows\AppCompat\Programs\Amcache.hve --csv C:\IR\parsed\amcache
+AppCompatCacheParser.exe -f C:\IR\hives\SYSTEM --csv C:\IR\parsed\shimcache
+TimelineExplorer.exe C:\IR\parsed\*.csv</code></pre>
+          </div>
+        </details>
+
+        <h4>Procedury per faza IR</h4>
+        <div class="grid-2">
+          <div class="card">
+            <h5>Preparation / Identification</h5>
+            <ol>
+              <li>Przygotuj zatwierdzony nośnik z WinPmem, FTK Imager, KAPE, Sysinternals, Zimmerman Tools, AVML, LiME, Volatility 3, jq, sqlite3, YARA i Sleuth Kit.</li>
+              <li>Zapisz hashe narzędzi, wersje, źródła pobrania i daty aktualizacji.</li>
+              <li>Sprawdź, czy host nadal działa i czy RAM może zawierać C2, malware, klucze, tokeny lub usuniętą z dysku binarkę.</li>
+              <li>Zbierz procesy, cmdline, połączenia, sesje i logi przed restartem lub cięższą ingerencją.</li>
+            </ol>
+          </div>
+          <div class="card">
+            <h5>Containment / Eradication / Recovery</h5>
+            <ol>
+              <li>Jeżeli RAM jest krytyczny, wykonaj dump przed EDR isolation, restartem lub odcięciem zasilania.</li>
+              <li>Nie zabijaj procesu, jeśli nie masz zrzutu i nie wiesz, czy binarka istnieje na dysku.</li>
+              <li>W eradication wykorzystaj wyniki <code>malfind</code>, <code>ldrmodules</code>, <code>dlllist</code>, <code>handles</code>, <code>netscan</code>, <code>svcscan</code>, artefakty Run keys i moduły/driver.</li>
+              <li>Przed recovery potwierdź, że nie wraca podejrzany proces, usługa, driver, scheduled task, cron/timer ani połączenie C2.</li>
+            </ol>
+          </div>
+        </div>
       </section>
 
       <section id="extended">
