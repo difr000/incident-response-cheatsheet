@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Incident response cheatsheet 2026 v3 text-only</title>
+  <title>Incident response cheatsheet 2026 expanded IR cloud OT update</title>
   <style>
     :root {
       --bg: #071018;
@@ -542,6 +542,11 @@
         <a href="#analysis">Analiza i artefakty</a>
         <a href="#linux">Linux / Unix</a>
         <a href="#windows">Windows / Windows Server</a>
+        <a href="#ops">Model IR i triage</a>
+        <a href="#cloud">AWS i Azure IR</a>
+        <a href="#ti">Threat Intel i ransomware</a>
+        <a href="#ot">OT / ICS DFIR</a>
+        <a href="#extended">Rozszerzone artefakty</a>
         <a href="#closeout">Containment i recovery</a>
       </nav>
       <div class="hint">
@@ -554,12 +559,12 @@
       <header class="hero" id="intro">
         <div class="eyebrow">Evidence First • Multi-Surface IR • Windows + Linux</div>
         <p class="authorline">Incident Response cheatsheet by Matt "difr000" Sabaj (difr000@proton.me)</p>
-        <h2>Incident response cheatsheet 2026 v3</h2>
+        <h2>Incident response cheatsheet 2026</h2>
         <p>
-          Ta wersja HTML łączy checklisty operacyjne z praktycznymi procedurami, komendami oraz krokami postępowania w DIFR.
+          Ta wersja HTML łączy checklisty operacyjne z praktycznymi procedurami, komendami oraz krokami postępowania w DIFR, rozszerzonymi o AWS, Azure, OT/ICS, ransomware, threat intelligence i rozbudowany triage.
         </p>
         <div class="tip" style="margin-top:18px;">
-          Niniejsza wersja 3 jest przygotowana jako wariant <strong>Poradnik</strong>: czyli wskazówki, porady oraz komendy, które mają stanowić wsparcie dla Czytelnika.
+          Niniejsza wersja jest przygotowana jako wariant <strong>Poradnik</strong>: czyli wskazówki, porady oraz komendy, które mają stanowić wsparcie dla Czytelnika.
         </div>
         <div class="stats">
           <div class="stat">
@@ -1677,6 +1682,474 @@ manage-bde -protectors -get C: &gt; "$IR\live\manage-bde-protectors-C.txt"</code
               <li>Zabezpiecz recovery key BitLocker i dane o protectorach.</li>
               <li>Dopiero potem przechodź do pełnego obrazowania i containment.</li>
             </ol>
+          </div>
+        </details>
+      </section>
+
+      <section id="ops">
+        <h3>Model IR i Triage Operacyjny</h3>
+        <p>
+          Nowe materiały z katalogu <code>INCIDENT RESPOSNE</code> wzmacniają część operacyjną: role, RACI,
+          severity, komunikację awaryjną, metryki i formalne decyzje containment. Skuteczny IR wymaga
+          gotowych uprawnień, kontaktów, repozytorium dowodów i właściciela incydentu zanim pojawi się presja czasu.
+        </p>
+
+        <div class="grid-3">
+          <div class="card">
+            <h5>Minimalne role</h5>
+            <ul>
+              <li><strong>Incident Manager:</strong> dowodzi pracą, zatwierdza priorytety i decyzje containment.</li>
+              <li><strong>DFIR/SOC:</strong> zbiera dowody, buduje timeline, potwierdza scope i IOC.</li>
+              <li><strong>IT/Cloud/Network:</strong> wykonuje izolację, snapshoty, zmiany reguł i recovery.</li>
+              <li><strong>Legal/PR/Zarząd:</strong> decyduje o zgłoszeniach, komunikacji i ryzyku biznesowym.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h5>Severity</h5>
+            <ul>
+              <li><strong>SEV-1:</strong> ransomware, AD/cloud admin compromise, OT, exfiltration, wiele segmentów.</li>
+              <li><strong>SEV-2:</strong> lateral movement, privileged account, exploit usługi publicznej, cloud key abuse.</li>
+              <li><strong>SEV-3:</strong> pojedynczy host lub konto bez potwierdzonego ruchu bocznego.</li>
+              <li><strong>SEV-4:</strong> zdarzenie informacyjne lub false positive po udokumentowanym triage.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h5>Metryki po incydencie</h5>
+            <ul>
+              <li><code>MTTD</code> - mean time to detect.</li>
+              <li><code>MTTA</code> - mean time to acknowledge.</li>
+              <li><code>MTTC</code> - mean time to contain.</li>
+              <li><code>MTTR</code> - mean time to respond / recover.</li>
+              <li><code>Dwell time</code> - czas obecności atakującego przed wykryciem.</li>
+            </ul>
+          </div>
+        </div>
+
+        <details open style="margin-top:18px;">
+          <summary>▾ Pytania, które trzeba zamknąć w triage</summary>
+          <div class="details-body">
+            <pre><code>1. Jaki był prawdopodobny initial access?
+2. Czy atakujący nadal ma dostęp do środowiska?
+3. Jakie konta są przejęte i jaki mają poziom uprawnień?
+4. Czy istnieje persistence: usługa, task, webshell, konto, klucz SSH, token, OAuth app?
+5. Czy jest C2, beaconing, tunel, reverse shell lub nietypowy outbound?
+6. Czy jest lateral movement: RDP, SMB, WinRM, SSH, PsExec, WMI, cloud role assumption?
+7. Czy doszło do exfiltration i jakim kanałem?
+8. Czy backupy, hypervisory, storage lub cloud snapshots są dotknięte incydentem?
+9. Czy containment obejmuje wszystkie powiązane hosty, konta, klucze, segmenty i workloady cloud?</code></pre>
+          </div>
+        </details>
+
+        <details open style="margin-top:18px;">
+          <summary>▾ Minimalny timeline techniczny</summary>
+          <div class="details-body">
+            <pre><code>T0  - pierwsze znane zdarzenie lub najstarszy IOC
+T1  - initial access
+T2  - pierwsze użycie przejętego konta / klucza / tokenu
+T3  - privilege escalation
+T4  - persistence
+T5  - discovery i internal reconnaissance
+T6  - lateral movement
+T7  - staging / kompresja / archiwizacja / upload
+T8  - impact: encryption, deletion, defacement, resource hijacking, cloud abuse
+T9  - pierwsza reakcja administratorów
+T10 - formalne zgłoszenie do IR
+T11 - containment
+T12 - eradication
+T13 - recovery</code></pre>
+          </div>
+        </details>
+      </section>
+
+      <section id="cloud">
+        <h3>AWS i Azure Incident Response</h3>
+        <p>
+          Chmura wymaga osobnego workflow. W AWS i Azure część incydentów rozwiązuje się przez API i logi
+          control plane, a część przez klasyczny DFIR systemu operacyjnego. Najważniejsze jest szybkie
+          zabezpieczenie logów, identity, snapshotów i konfiguracji, zanim automatyzacja lub retencja usunie ślady.
+        </p>
+
+        <div class="grid-2">
+          <div class="card">
+            <h5>AWS: domeny incydentu</h5>
+            <ul>
+              <li><strong>Service domain:</strong> IAM, account, CloudTrail, S3 policies, GuardDuty, Security Hub.</li>
+              <li><strong>Infrastructure domain:</strong> EC2, EBS, VPC Flow Logs, memory, OS, containers.</li>
+              <li><strong>Application domain:</strong> kod, runtime, sekrety, CI/CD, logi aplikacji.</li>
+              <li>Wydziel konta <code>log archive</code>, <code>security tooling</code> i <code>forensics</code>.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h5>Azure: warstwy incydentu</h5>
+            <ul>
+              <li><strong>Entra ID:</strong> sign-in logs, audit logs, role assignments, app registrations.</li>
+              <li><strong>Subscription:</strong> Activity Log, resource groups, RBAC, locks, policy.</li>
+              <li><strong>Workload:</strong> VM, disk snapshots, Storage, Key Vault, NSG, Defender for Cloud.</li>
+              <li><strong>SIEM:</strong> Microsoft Sentinel, Log Analytics, KQL, diagnostic settings.</li>
+            </ul>
+          </div>
+        </div>
+
+        <details open style="margin-top:18px;">
+          <summary>▾ AWS: szybki triage konta i regionów</summary>
+          <div class="details-body">
+            <pre><code>aws sts get-caller-identity
+aws organizations list-accounts
+aws ec2 describe-regions --all-regions --query 'Regions[].RegionName' --output text
+aws cloudtrail describe-trails --include-shadow-trails
+aws guardduty list-detectors
+aws securityhub describe-hub
+aws configservice describe-configuration-recorders</code></pre>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ AWS: CloudTrail, IAM i przejęty access key</summary>
+          <div class="details-body">
+            <pre><code>export START="2026-04-16T00:00:00Z"
+export END="2026-04-16T23:59:59Z"
+
+aws cloudtrail lookup-events \
+  --start-time "$START" \
+  --end-time "$END" \
+  --lookup-attributes AttributeKey=Username,AttributeValue=&lt;IAM_USER_OR_ROLE&gt;
+
+aws cloudtrail lookup-events \
+  --lookup-attributes AttributeKey=EventName,AttributeValue=ConsoleLogin \
+  --start-time "$START" --end-time "$END"
+
+aws iam list-users
+aws iam list-access-keys --user-name &lt;user&gt;
+aws iam get-account-authorization-details &gt; aws_iam_authorization_details.json
+aws iam update-access-key --user-name &lt;user&gt; --access-key-id &lt;AKIA...&gt; --status Inactive</code></pre>
+            <p>Szukaj: <code>ConsoleLogin</code>, <code>CreateAccessKey</code>, <code>AssumeRole</code>, <code>DeleteTrail</code>, <code>StopLogging</code>, <code>PutBucketPolicy</code>, <code>AuthorizeSecurityGroupIngress</code>, <code>RunInstances</code>.</p>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ AWS: EC2 evidence-first isolation</summary>
+          <div class="details-body">
+            <pre><code>export INSTANCE_ID=i-xxxxxxxxxxxxxxxxx
+export REGION=eu-central-1
+
+aws ec2 describe-instances --region "$REGION" --instance-ids "$INSTANCE_ID" &gt; ec2_instance_metadata.json
+aws ec2 modify-instance-attribute --region "$REGION" --instance-id "$INSTANCE_ID" --disable-api-termination
+aws ec2 create-tags --region "$REGION" --resources "$INSTANCE_ID" --tags Key=IR-Status,Value=Quarantine Key=IR-Ticket,Value=&lt;ticket&gt;
+
+aws ec2 describe-volumes --region "$REGION" \
+  --filters Name=attachment.instance-id,Values="$INSTANCE_ID" \
+  --query 'Volumes[].VolumeId' --output text
+
+for vol in $(aws ec2 describe-volumes --region "$REGION" --filters Name=attachment.instance-id,Values="$INSTANCE_ID" --query 'Volumes[].VolumeId' --output text); do
+  aws ec2 create-snapshot --region "$REGION" --volume-id "$vol" --description "IR snapshot $INSTANCE_ID $vol &lt;ticket&gt;"
+done
+
+export VPC_ID=vpc-xxxxxxxx
+export SG_IR=$(aws ec2 create-security-group --region "$REGION" --group-name ir-quarantine --description "IR quarantine deny all" --vpc-id "$VPC_ID" --query GroupId --output text)
+aws ec2 modify-instance-attribute --region "$REGION" --instance-id "$INSTANCE_ID" --groups "$SG_IR"</code></pre>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ AWS: S3 exposure i Athena CloudTrail</summary>
+          <div class="details-body">
+            <pre><code>aws s3api get-bucket-policy --bucket &lt;bucket&gt; &gt; s3_bucket_policy.json
+aws s3api get-bucket-acl --bucket &lt;bucket&gt; &gt; s3_bucket_acl.json
+aws s3api get-public-access-block --bucket &lt;bucket&gt;
+aws s3api get-bucket-logging --bucket &lt;bucket&gt;
+aws s3api get-bucket-versioning --bucket &lt;bucket&gt;
+aws s3api list-object-versions --bucket &lt;bucket&gt; --max-items 100
+
+aws s3api put-public-access-block \
+  --bucket &lt;bucket&gt; \
+  --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true</code></pre>
+            <pre><code>SELECT eventTime, eventSource, eventName, userIdentity.type, userIdentity.arn, sourceIPAddress, userAgent, awsRegion
+FROM cloudtrail_logs
+WHERE eventTime &gt; current_timestamp - interval '24' hour
+ORDER BY eventTime DESC;</code></pre>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ Azure: triage subskrypcji, Activity Log i Log Analytics</summary>
+          <div class="details-body">
+            <pre><code>az account show -o table
+az account list -o table
+az group list -o table
+az resource list --query '[].{name:name,type:type,resourceGroup:resourceGroup,location:location}' -o table
+az role assignment list --all -o table
+
+export START="2026-04-16T00:00:00Z"
+export END="2026-04-16T23:59:59Z"
+
+az monitor activity-log list --start-time "$START" --end-time "$END" -o json &gt; azure_activity_log.json
+az monitor activity-log list --status Failed --start-time "$START" --end-time "$END" -o table
+az monitor diagnostic-settings subscription list --subscription &lt;subscription-id&gt;
+az monitor log-analytics workspace list -o table</code></pre>
+            <pre><code>AzureActivity
+| where TimeGenerated &gt; ago(24h)
+| project TimeGenerated, Caller, OperationNameValue, ActivityStatusValue, ResourceGroup, ResourceProviderValue, ResourceId, CallerIpAddress
+| order by TimeGenerated desc</code></pre>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ Azure / Entra ID: sign-in, audit i suspicious apps</summary>
+          <div class="details-body">
+            <pre><code>Connect-MgGraph -Scopes "AuditLog.Read.All","Directory.Read.All","User.ReadWrite.All","Application.Read.All"
+Get-MgAuditLogSignIn -Top 100 | Select-Object CreatedDateTime,UserPrincipalName,AppDisplayName,IpAddress,ClientAppUsed,ConditionalAccessStatus
+Get-MgAuditLogDirectoryAudit -Top 100 | Select-Object ActivityDateTime,ActivityDisplayName,InitiatedBy,TargetResources
+Get-MgUser -UserId user@domain.tld | Select-Object Id,UserPrincipalName,AccountEnabled</code></pre>
+            <p>Szukaj: legacy auth, MFA fatigue, nietypowe ASN/kraje, nowe OAuth consent grant, dodanie credential do App Registration, zmiany Conditional Access, dostęp do Key Vault i Storage.</p>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ Azure: izolacja VM, snapshot dysku i resource lock</summary>
+          <div class="details-body">
+            <pre><code>az vm show -g &lt;rg&gt; -n &lt;vm&gt; -o json &gt; azure_vm_metadata.json
+az vm get-instance-view -g &lt;rg&gt; -n &lt;vm&gt; -o json &gt; azure_vm_instance_view.json
+export DISK_ID=$(az vm show -g &lt;rg&gt; -n &lt;vm&gt; --query 'storageProfile.osDisk.managedDisk.id' -o tsv)
+az snapshot create -g &lt;ir-rg&gt; -n "&lt;vm&gt;-osdisk-ir-snapshot" --source "$DISK_ID" --sku Standard_LRS
+
+az network nsg create -g &lt;ir-rg&gt; -n nsg-ir-quarantine
+az network nsg rule create -g &lt;ir-rg&gt; --nsg-name nsg-ir-quarantine \
+  -n DenyAllInbound --priority 100 --direction Inbound --access Deny --protocol '*' \
+  --source-address-prefixes '*' --source-port-ranges '*' \
+  --destination-address-prefixes '*' --destination-port-ranges '*'
+az network nsg rule create -g &lt;ir-rg&gt; --nsg-name nsg-ir-quarantine \
+  -n DenyAllOutbound --priority 101 --direction Outbound --access Deny --protocol '*' \
+  --source-address-prefixes '*' --source-port-ranges '*' \
+  --destination-address-prefixes '*' --destination-port-ranges '*'
+az network nic update -g &lt;rg&gt; -n &lt;nic-name&gt; --network-security-group nsg-ir-quarantine
+
+az lock create --name IR-DoNotDelete --lock-type CanNotDelete --resource-group &lt;rg&gt;</code></pre>
+          </div>
+        </details>
+      </section>
+
+      <section id="ti">
+        <h3>Threat Intelligence, Detection Engineering i Ransomware</h3>
+        <div class="grid-2">
+          <div class="card">
+            <h5>Pipeline IOC</h5>
+            <ol>
+              <li>Zbierz atomic IOC: IP, domeny, URL, hash, nazwy plików, user-agent, ASN.</li>
+              <li>Dodaj computed IOC: ssdeep, imphash, TLS cert, favicon hash, YARA, Sigma.</li>
+              <li>Dodaj behavioral IOC: cloud API, sekwencje procesów, logon type, parent-child.</li>
+              <li>Wzbogać IOC przez passive DNS, reputation, sandbox, MISP/OpenCTI/VirusTotal.</li>
+              <li>Wprowadź IOC do SIEM/EDR/NDR/WAF/DNS/proxy z TTL i właścicielem.</li>
+            </ol>
+          </div>
+          <div class="card">
+            <h5>Narzędzia do dopisania do warsztatu</h5>
+            <ul>
+              <li><code>KAPE</code>, <code>DFIR-O365RC</code>, <code>Chainsaw</code>, <code>Zircolite</code></li>
+              <li><code>THOR Lite</code>, <code>Aurora Lite</code>, <code>yarGen</code>, <code>Security Onion</code></li>
+              <li><code>Sigma CLI</code>, <code>YARA</code>, <code>Velociraptor</code>, <code>Wazuh</code></li>
+            </ul>
+          </div>
+        </div>
+
+        <details open style="margin-top:18px;">
+          <summary>▾ Sigma, Security Onion i EVTX/PCAP workflow</summary>
+          <div class="details-body">
+            <pre><code>sigma convert -s -t splunk -p sysmon rules/windows/process_creation -o splunk_queries.conf
+
+sudo so-import-evtx Application.evtx Security.evtx System.evtx Microsoft-Windows-Sysmon%4Operational.evtx "Windows PowerShell.evtx"
+
+sudo so-import-pcap capture01.pcap capture02.pcap</code></pre>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ Ransomware i extortion bez szyfrowania</summary>
+          <div class="details-body">
+            <p>
+              Brak szyfrowania nie oznacza niskiego wpływu. Nowe raporty wskazują na wymuszenia oparte o data theft,
+              presję reputacyjną, leak sites i kontakt z klientami lub partnerami. Analiza exfiltration musi iść równolegle
+              do analizy encryption.
+            </p>
+            <pre><code>1. Nie kasuj noty okupu, linków onion, próbek, rozszerzeń plików ani nazw grupy.
+2. Ustal, czy jest encryption, data theft, harassment, leak site threat, czy kombinacja.
+3. Zabezpiecz backupy i repozytoria przed nadpisaniem.
+4. Zidentyfikuj staging: 7z/rar, rclone, MEGAcmd, WinSCP, curl, cloud sync, S3/Azure blob.
+5. Zidentyfikuj szyfrowanie: shadow copy deletion, backup deletion, tasks, services.
+6. Oceń exfiltration niezależnie od encryption.
+7. Restore wykonuj dopiero po potwierdzeniu, że root cause i persistence są usunięte.</code></pre>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ Windows ransomware hunting</summary>
+          <div class="details-body">
+            <pre><code>Get-WinEvent -FilterHashtable @{LogName='Security';Id=4688,1102,4697,4698,4702,4719} -MaxEvents 2000 |
+  Select-Object TimeCreated,Id,ProviderName,Message |
+  Out-File "$IR\logs\ransomware_security_events.txt"
+
+Get-WinEvent -LogName System -MaxEvents 2000 |
+  Where-Object {$_.Id -in 7034,7036,7040,7045,6005,6006} |
+  Format-List | Out-File "$IR\logs\ransomware_system_service_events.txt"
+
+vssadmin list shadows &gt; "$IR\live\vssadmin_shadows.txt"
+wmic shadowcopy list brief &gt; "$IR\live\wmic_shadowcopy.txt"
+bcdedit /enum all &gt; "$IR\live\bcdedit_all.txt"</code></pre>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ Linux ransomware hunting</summary>
+          <div class="details-body">
+            <pre><code>find / -xdev -type f -mtime -3 -printf '%TY-%Tm-%Td %TT %s %p\n' 2&gt;/dev/null | sort &gt; "$IR_DIR/fs/recent_files_3d.txt"
+find / -xdev -type f \( -name '*README*' -o -name '*RECOVER*' -o -name '*DECRYPT*' -o -name '*.locked' -o -name '*.encrypted' \) 2&gt;/dev/null | tee "$IR_DIR/fs/ransom_notes_and_extensions.txt"
+grep -RniE 'rclone|mega|7z|rar|openssl enc|gpg --batch|shred|wipe|srm|rm -rf|curl .*upload|aws s3 cp|az storage blob' /root /home /tmp /var/tmp /opt 2&gt;/dev/null | tee "$IR_DIR/fs/exfil_and_encrypt_tooling_hits.txt"</code></pre>
+          </div>
+        </details>
+      </section>
+
+      <section id="ot">
+        <h3>OT / ICS DFIR</h3>
+        <p>
+          W OT zasada <strong>safety first</strong> ma pierwszeństwo przed klasycznym IT containment.
+          Nie wolno odruchowo skanować, restartować, odcinać ani podłączać narzędzi do urządzeń sterujących
+          bez uzgodnienia z inżynierami OT i właścicielem procesu.
+        </p>
+        <div class="grid-3">
+          <div class="card">
+            <h5>Co zbierać</h5>
+            <ul>
+              <li>HMI: alarmy, dismissed alarms, kliknięcia operatora, EVTX, zrzuty ekranów.</li>
+              <li>Engineering Workstation: project files, logic files, source code, konfiguracje.</li>
+              <li>PLC/RTU: firmware, control logic, stan kart, logi vendor-specific.</li>
+              <li>VPN/vendor access: sesje, źródłowe IP, transfery, konta dostawców.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h5>Czego unikać</h5>
+            <ul>
+              <li>Aktywnego skanowania bez zgody OT.</li>
+              <li>Instalacji narzędzi forensic na HMI/EWS bez testów.</li>
+              <li>Restartu systemów sterujących dla samego "oczyszczenia".</li>
+              <li>Użycia USB bez akceptacji i kontroli jednorazowego nośnika.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h5>Analiza OT</h5>
+            <ul>
+              <li>Porównanie z baseline: hashe, projekty, konfiguracje, NetFlow.</li>
+              <li>Walidacja project files i logiki PLC z repozytorium znanych dobrych wersji.</li>
+              <li>NetFlow/PCAP przez TAP/SPAN, najlepiej pasywnie.</li>
+              <li>Decyzje containment tylko z oceną safety i wpływu procesu.</li>
+            </ul>
+          </div>
+        </div>
+        <details open style="margin-top:18px;">
+          <summary>▾ OT: procedura bezpiecznej akwizycji</summary>
+          <div class="details-body">
+            <pre><code>1. Ustal z operatorem, czy system jest w stanie bezpiecznym.
+2. Wyznacz inżyniera OT jako świadka i konsultanta każdej akcji.
+3. Fotografuj ekrany, alarmy, stan PLC, pozycje przełączników i komunikaty.
+4. Nie instaluj narzędzi na HMI/EWS bez zgody; preferuj zatwierdzone nośniki live lub kopie offline.
+5. Zbieraj VPN logs i NetFlow wcześnie, bo są często rotowane lub manipulowane.
+6. Hashuj project files i porównuj z repozytorium znanych dobrych wersji.
+7. Jeśli potrzebny jest PCAP, używaj TAP/SPAN uzgodnionego z OT, nie aktywnego skanowania.
+8. Nie wykonuj containment, który może zatrzymać proces technologiczny, bez decyzji safety/business.</code></pre>
+          </div>
+        </details>
+      </section>
+
+      <section id="extended">
+        <h3>Rozszerzone Artefakty Windows / Linux</h3>
+        <div class="grid-2">
+          <div class="card">
+            <h5>Linux: pakiety i repozytoria</h5>
+            <pre><code>cat /etc/apt/sources.list 2&gt;/dev/null | tee "$IR_DIR/system/apt_sources.txt"
+find /etc/apt/sources.list.d -type f -maxdepth 1 -exec sed -n '1,120p' {} \; 2&gt;/dev/null | tee "$IR_DIR/system/apt_sources_d.txt"
+dpkg -l | tee "$IR_DIR/system/dpkg_l.txt"
+dpkg -V 2&gt;/dev/null | tee "$IR_DIR/system/dpkg_verify.txt"
+zgrep -h " install \| upgrade \| remove " /var/log/apt/history.log* 2&gt;/dev/null | tee "$IR_DIR/system/apt_history.txt"
+
+find /etc/yum.repos.d -type f -maxdepth 1 -exec sed -n '1,160p' {} \; 2&gt;/dev/null | tee "$IR_DIR/system/yum_repos.txt"
+rpm -qa | tee "$IR_DIR/system/rpm_qa.txt"
+rpm -Va 2&gt;/dev/null | tee "$IR_DIR/system/rpm_verify.txt"
+dnf history 2&gt;/dev/null | tee "$IR_DIR/system/dnf_history.txt"</code></pre>
+          </div>
+          <div class="card">
+            <h5>Linux: pamięć i remote imaging</h5>
+            <pre><code>chmod +x ./avml
+./avml --compress "$IR_DIR/live/memory_$(hostname)_$(date +%F_%H%M%S).lime.compressed"
+sha256sum "$IR_DIR"/live/memory_* | tee "$IR_DIR/hashes/memory_sha256.txt"
+
+dd if=/dev/sdX bs=4M conv=sync,noerror status=progress | ssh analyst@&lt;collector-ip&gt; "dd of=/cases/host_sda.raw bs=4M"
+
+# destination
+nc -nvlp 9000 | bzip2 -d | dd bs=4M of=/cases/host_sda.raw
+
+# source
+dd if=/dev/sdX bs=4M conv=sync,noerror status=progress | bzip2 -c | nc &lt;collector-ip&gt; 9000</code></pre>
+          </div>
+        </div>
+
+        <h4>Windows: dodatkowe Event ID</h4>
+        <div class="table-wrap" style="margin-top:12px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Obszar</th>
+                <th>Event ID</th>
+                <th>Znaczenie</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Object access</td><td>4656 / 4658 / 4660 / 4663</td><td>handle, dostęp, usunięcie i operacje na obiektach</td></tr>
+              <tr><td>Audit policy</td><td>4719</td><td>zmiana polityki audytu</td></tr>
+              <tr><td>Log clearing</td><td>1102 / 104</td><td>wyczyszczenie Security lub System log</td></tr>
+              <tr><td>Services</td><td>6005 / 6006 / 7034 / 7036 / 7040 / 7045</td><td>start/stop Event Log, awarie usług, zmiana start type, instalacja usługi</td></tr>
+              <tr><td>WLAN</td><td>8001 / 8002</td><td>udane i nieudane połączenia Wi-Fi</td></tr>
+              <tr><td>WFP</td><td>5031 / 5152 / 5154 / 5156 / 5157 / 5158 / 5159</td><td>firewall, listener, allowed/blocked connection</td></tr>
+              <tr><td>Defender</td><td>1006 / 1116 / 1117 / 5001 / 5004 / 5007</td><td>detekcje, akcje, wyłączenie ochrony, zmiana konfiguracji</td></tr>
+              <tr><td>PowerShell</td><td>4103 / 4104 / 400 / 800</td><td>module logging, script block logging, engine i pipeline details</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <details open style="margin-top:18px;">
+          <summary>▾ Windows: PowerShell, Sysmon i Defender szybkie filtrowanie</summary>
+          <div class="details-body">
+            <pre><code>Get-WinEvent -LogName 'Microsoft-Windows-PowerShell/Operational' -MaxEvents 2000 |
+  Where-Object {$_.Id -in 4103,4104} |
+  Format-List | Out-File "$IR\logs\PowerShell_4103_4104.txt"
+
+Get-WinEvent -LogName 'Windows PowerShell' -MaxEvents 2000 |
+  Where-Object {$_.Id -in 400,800} |
+  Format-List | Out-File "$IR\logs\WindowsPowerShell_400_800.txt"
+
+Get-WinEvent -LogName 'Microsoft-Windows-Sysmon/Operational' -MaxEvents 5000 |
+  Where-Object {$_.Id -in 1,3,7,8,10,11,12,13,15,16,17,18,19,20,21,22} |
+  Format-List | Out-File "$IR\logs\Sysmon_priority.txt"
+
+Get-WinEvent -LogName 'Microsoft-Windows-Windows Defender/Operational' -MaxEvents 1000 |
+  Where-Object {$_.Id -in 1006,1007,1008,1013,1015,1116,1117,1118,1119,5001,5004,5007,5010,5012} |
+  Format-List | Out-File "$IR\logs\Defender_priority.txt"</code></pre>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ Minimalna struktura raportu końcowego</summary>
+          <div class="details-body">
+            <pre><code>1. Executive summary
+2. Zakres i ograniczenia analizy
+3. Timeline techniczny
+4. Potwierdzony lub prawdopodobny initial access
+5. Konta, hosty, workloady cloud i dane w zakresie
+6. TTP mapowane do MITRE ATT&amp;CK
+7. Dowody exfiltration / impact / persistence
+8. Działania containment, eradication i recovery
+9. Materiał dowodowy: lokalizacja, hash, osoba odpowiedzialna
+10. Root cause i enabling conditions
+11. Ryzyko re-entry
+12. Rekomendacje: 24h, 7 dni, 30 dni, 90 dni
+13. Załączniki: IOC, zapytania, log sources, chain of custody</code></pre>
           </div>
         </details>
       </section>
