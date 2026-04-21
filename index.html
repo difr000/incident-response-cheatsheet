@@ -549,6 +549,7 @@
         <a href="#memory">Memory forensics</a>
         <a href="#extended">Rozszerzone artefakty</a>
         <a href="#closeout">Containment i recovery</a>
+        <a href="#tools-catalog">Narzędzia</a>
       </nav>
       <div class="hint">
         W tym dokumencie sekcje rozwijane są domyślnie otwarte, więc treść nie jest schowana.
@@ -1685,6 +1686,333 @@ manage-bde -protectors -get C: &gt; "$IR\live\manage-bde-protectors-C.txt"</code
             </ol>
           </div>
         </details>
+
+        <div class="grid-3" style="margin-top:18px;">
+          <div class="card">
+            <h5>Rejestr: dlaczego jest krytyczny</h5>
+            <p>Rejestr Windows bardzo często odpowiada na pytania o wykonanie, persystencję, nawyki użytkownika, konfigurację bezpieczeństwa i zmiany systemowe. Dobrze uzupełnia EVTX, Prefetch, Amcache, Jump Lists i artefakty pamięci, bo pokazuje zarówno ślady interakcji użytkownika, jak i wpisy utrwalające złośliwe działania. W praktyce jeden podejrzany klucz potrafi powiązać proces z binarką, ścieżką, czasem aktywności i sposobem utrzymania dostępu.</p>
+          </div>
+          <div class="card">
+            <h5>Hives do natychmiastowego zabezpieczenia</h5>
+            <p><code>SAM</code>, <code>SYSTEM</code>, <code>SOFTWARE</code>, <code>SECURITY</code>, <code>NTUSER.dat</code> i <code>UsrClass.dat</code> to absolutne minimum przy triage Windows. Bez nich trudno rzetelnie ocenić logowania, konfigurację LSA, autostart, zdalny dostęp, preferencje użytkownika i część artefaktów Explorer. Jeśli host jeszcze działa, warto zapisać zarówno kopie plików hive, jak i szybki tekstowy podgląd kluczowych ścieżek przez <code>reg query</code> lub PowerShell.</p>
+          </div>
+          <div class="card">
+            <h5>Na co patrzeć priorytetowo</h5>
+            <p>Najpierw szukaj kluczy odpowiadających za autostart, task cache, usługi, ustawienia RDP, WDigest, AlwaysInstallElevated oraz śladów interakcji w <code>RunMRU</code>, <code>TypedPaths</code> i gałęziach <code>FeatureUsage</code>. To właśnie te obszary najczęściej pokazują uruchomienie narzędzi ofensywnych, manipulację politykami, szybkie persistence i nieoczywiste ślady operatora. Potem koreluj to z procesami, EVTX i plikami z <code>ProgramData</code>, <code>Users\Public</code>, <code>AppData</code> lub <code>Temp</code>.</p>
+          </div>
+        </div>
+
+        <details open style="margin-top:18px;">
+          <summary>▾ 8. Artefakty Rejestru Windows szczególnie przydatne w IR</summary>
+          <div class="details-body">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Klucz / ścieżka</th>
+                    <th>Znaczenie śledcze</th>
+                    <th>Na jakie pytanie odpowiada</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FeatureUsage\ShowJumpView</code></td>
+                    <td>Ślady użycia aplikacji i interakcji z interfejsem Explorer.</td>
+                    <td>Czy użytkownik otwierał aplikacje lub elementy powiązane z ostatnią aktywnością.</td>
+                  </tr>
+                  <tr>
+                    <td><code>HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FeatureUsage\AppSwitched</code></td>
+                    <td>Informacja o przełączaniu się między aplikacjami przez użytkownika.</td>
+                    <td>Jakie aplikacje były aktywnie używane podczas sesji operatora.</td>
+                  </tr>
+                  <tr>
+                    <td><code>HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FeatureUsage\AppBadgeUpdated</code></td>
+                    <td>Ślad aktywności niektórych aplikacji i zmian ich stanu.</td>
+                    <td>Czy konkretna aplikacja była aktywna lub odświeżana w profilu użytkownika.</td>
+                  </tr>
+                  <tr>
+                    <td><code>HKCU\SOFTWARE\Microsoft\Terminal Server Client\Servers</code></td>
+                    <td>Historia połączeń RDP klienta.</td>
+                    <td>Do jakich hostów użytkownik łączył się przez RDP.</td>
+                  </tr>
+                  <tr>
+                    <td><code>HKLM\Software\Microsoft\RADAR\HeapLeakDetection\DiagnosedApplications</code></td>
+                    <td>Wpisy o diagnozowanych aplikacjach, czasem ujawniające nietypowe programy.</td>
+                    <td>Jakie procesy były obserwowane przez mechanizmy systemowe i czy pojawiały się nietypowe binarki.</td>
+                  </tr>
+                  <tr>
+                    <td><code>HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\RunMRU</code></td>
+                    <td>Polecenia wpisywane w oknie Uruchamianie.</td>
+                    <td>Czy użytkownik lub operator uruchamiał ręcznie polecenia, skrypty lub LOLBin-y.</td>
+                  </tr>
+                  <tr>
+                    <td><code>HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\TypedPaths</code></td>
+                    <td>Ręcznie wpisywane ścieżki w Explorerze.</td>
+                    <td>Czy użytkownik odwiedzał udział sieciowy, katalog stagingowy lub podejrzaną lokalizację.</td>
+                  </tr>
+                  <tr>
+                    <td><code>HKLM\Software\Microsoft\Windows\CurrentVersion\Run</code><br><code>HKLM\Software\Microsoft\Windows\CurrentVersion\RunOnce</code><br><code>HKCU\Software\Microsoft\Windows\CurrentVersion\Run</code><br><code>HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce</code></td>
+                    <td>Klasyczne autostarty i persistence.</td>
+                    <td>Co uruchamia się automatycznie i z jakiej ścieżki.</td>
+                  </tr>
+                  <tr>
+                    <td><code>HKLM\SYSTEM\CurrentControlSet\Services\*</code></td>
+                    <td>Definicje usług i sterowników.</td>
+                    <td>Czy persistence lub lateral movement były realizowane przez usługę, driver albo service DLL.</td>
+                  </tr>
+                  <tr>
+                    <td><code>HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree</code></td>
+                    <td>Rejestrowe odwzorowanie scheduled tasks.</td>
+                    <td>Czy zadanie było zakładane lub modyfikowane nawet gdy XML taska nie jest już łatwo dostępny.</td>
+                  </tr>
+                  <tr>
+                    <td><code>HKLM\System\CurrentControlSet\Control\Lsa</code> (<code>DsrmAdminLogonBehavior</code>)</td>
+                    <td>Ustawienia logowania DSRM i zachowania LSA.</td>
+                    <td>Czy ktoś zmieniał ustawienia ułatwiające dostęp administracyjny lub nadużycia na DC.</td>
+                  </tr>
+                  <tr>
+                    <td><code>HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System</code> (<code>EnableLinkedConnections</code>)</td>
+                    <td>Ustawienie wpływające na mapowanie dysków między tokenami podwyższonymi i zwykłymi.</td>
+                    <td>Czy system był modyfikowany pod kątem wygody operatora, skryptów lub zdalnej administracji.</td>
+                  </tr>
+                  <tr>
+                    <td><code>HKCU\SOFTWARE\Policies\Microsoft\Windows\Installer</code><br><code>HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer</code> (<code>AlwaysInstallElevated</code>)</td>
+                    <td>Znana misconfiguration umożliwiająca eskalację uprawnień przez MSI.</td>
+                    <td>Czy host miał błędną konfigurację sprzyjającą nadużyciom.</td>
+                  </tr>
+                  <tr>
+                    <td><code>HKLM\System\CurrentControlSet\Control\Terminal Server</code> (<code>fDenyTSConnections</code>)</td>
+                    <td>Włączanie lub wyłączanie dostępu RDP.</td>
+                    <td>Czy atakujący odblokował RDP dla persistence lub zdalnego dostępu.</td>
+                  </tr>
+                  <tr>
+                    <td><code>HKLM\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters</code> (<code>MaxMpxCt</code>)</td>
+                    <td>Parametry usługi SMB/serwera plików.</td>
+                    <td>Czy zmieniano ustawienia wpływające na współdzielenie plików lub wydajność w kontekście ruchu lateralnego.</td>
+                  </tr>
+                  <tr>
+                    <td><code>HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest</code> (<code>UseLogonCredential</code>)</td>
+                    <td>Klucz silnie związany z credential theft.</td>
+                    <td>Czy ktoś próbował przywrócić przechowywanie poświadczeń w pamięci dla późniejszego dumpu LSASS.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ 9. Szybkie komendy do zabezpieczenia hive i kluczowych ścieżek rejestru</summary>
+          <div class="details-body">
+            <pre><code>reg save HKLM\SAM "%IR%\fs\SAM.hiv" /y
+reg save HKLM\SYSTEM "%IR%\fs\SYSTEM.hiv" /y
+reg save HKLM\SOFTWARE "%IR%\fs\SOFTWARE.hiv" /y
+reg save HKLM\SECURITY "%IR%\fs\SECURITY.hiv" /y
+
+reg query "HKLM\Software\Microsoft\Windows\CurrentVersion\Run" /s &gt; "%IR%\persistence\run_hklm_full.txt"
+reg query "HKLM\Software\Microsoft\Windows\CurrentVersion\RunOnce" /s &gt; "%IR%\persistence\runonce_hklm_full.txt"
+reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /s &gt; "%IR%\persistence\run_hkcu_full.txt"
+reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce" /s &gt; "%IR%\persistence\runonce_hkcu_full.txt"
+reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\RunMRU" /s &gt; "%IR%\users\RunMRU.txt"
+reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\TypedPaths" /s &gt; "%IR%\users\TypedPaths.txt"
+reg query "HKCU\SOFTWARE\Microsoft\Terminal Server Client\Servers" /s &gt; "%IR%\users\RDP_Servers.txt"
+reg query "HKLM\SYSTEM\CurrentControlSet\Services" /s &gt; "%IR%\persistence\Services_full.txt"
+reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree" /s &gt; "%IR%\persistence\TaskCache_Tree.txt"
+reg query "HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest" /s &gt; "%IR%\persistence\WDigest.txt"
+reg query "HKLM\System\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections &gt; "%IR%\persistence\RDP_TerminalServer.txt"</code></pre>
+            <pre><code>Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Run" | Format-List | Out-File "$IR\persistence\Run_HKLM_ps.txt"
+Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce" | Format-List | Out-File "$IR\persistence\RunOnce_HKLM_ps.txt"
+Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\RunMRU" | Format-List | Out-File "$IR\users\RunMRU_ps.txt"
+Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\TypedPaths" | Format-List | Out-File "$IR\users\TypedPaths_ps.txt"
+Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa" | Format-List | Out-File "$IR\persistence\LSA_settings.txt"
+Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" | Format-List | Out-File "$IR\persistence\Policies_System.txt"
+Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest" | Format-List | Out-File "$IR\persistence\WDigest_ps.txt"</code></pre>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ 10. KQL: hunting zdarzeń i modyfikacji rejestru</summary>
+          <div class="details-body">
+            <p>Poniższe zapytania bazują na źródłach <code>DeviceRegistryEvents</code>, <code>DeviceProcessEvents</code> i <code>DeviceEvents</code>. To praktyczne hunting queries do Microsoft Defender XDR / Advanced Hunting, ale ich logikę można łatwo przełożyć na inne platformy telemetryczne.</p>
+            <pre><code>// Run / RunOnce z podejrzanymi ścieżkami
+DeviceRegistryEvents
+| where ActionType == "RegistryValueSet" or ActionType == "RegistryKeyCreated"
+| where RegistryKey endswith @"\Software\Microsoft\Windows\CurrentVersion\Run"
+   or RegistryKey endswith @"\Software\Microsoft\Windows\CurrentVersion\RunOnce"
+| where RegistryValueData has_any (@"C:\Windows\Temp", @"C:\Users\Public", @"C:\ProgramData", @"%PUBLIC%", @"%APPDATA%", @"%TEMP%")</code></pre>
+            <pre><code>// Run / RunOnce po odfiltrowaniu znanych wartości legalnych
+DeviceRegistryEvents
+| where ActionType == "RegistryValueSet" or ActionType == "RegistryKeyCreated"
+| where RegistryKey endswith @"\Software\Microsoft\Windows\CurrentVersion\Run"
+   or RegistryKey endswith @"\Software\Microsoft\Windows\CurrentVersion\RunOnce"
+| where not (RegistryValueName has_any ("BingWallpaperApp", "Jabra Direct", "Docker Desktop", "Opera Stable"))</code></pre>
+            <pre><code>// Services wskazujące na binarki z lokalizacji często używanych przez malware
+DeviceRegistryEvents
+| where ActionType == "RegistryValueSet" or ActionType == "RegistryKeyCreated"
+| where RegistryKey has @"\Services\"
+| where RegistryValueData has_any (@"C:\Windows\Temp", @"C:\Users\Public", @"C:\ProgramData", @"%PUBLIC%", @"%APPDATA%")</code></pre>
+            <pre><code>// Scheduled tasks w TaskCache po odfiltrowaniu znanych wpisów
+DeviceRegistryEvents
+| where ActionType == "RegistryValueSet" or ActionType == "RegistryKeyCreated"
+| where RegistryKey contains @"\Schedule\TaskCache\Tree"
+| where not (RegistryKey has_any ("OneDrive", @"Office ClickToRun Service Monitor", @"Windows Defender", "Adobe Acrobat Update Task"))</code></pre>
+            <pre><code>// RunMRU / TypedPaths wskazujące na polecenia i LOLBin-y
+let Parameters = dynamic(['http', 'https', 'ftp', @'://', 'Encoded', 'EncodedCommand', '-e', '-eC', '-enc', '-w']);
+let Executables = dynamic(["cmd", "powershell", "curl", "mshta", "pwsh", "cscript", "wscript", "msiexec", "conhost", "schtasks", "finger"]);
+DeviceRegistryEvents
+| where ActionType == "RegistryValueSet" or ActionType == "RegistryKeyCreated"
+| where RegistryKey has @"\RunMRU" or RegistryKey has @"\TypedPaths"
+| where RegistryValueData has_any (Parameters) and RegistryValueData has_any (Executables)</code></pre>
+            <pre><code>// reg.exe query pod kątem ustawień Defendera
+DeviceProcessEvents
+| where ProcessVersionInfoOriginalFileName == "reg.exe"
+   or InitiatingProcessVersionInfoOriginalFileName == "reg.exe"
+| where ProcessCommandLine contains " query "
+   or InitiatingProcessCommandLine contains " query "
+| where ProcessCommandLine has @"\Microsoft\Windows Defender\Features"
+   or InitiatingProcessCommandLine has @"\Microsoft\Windows Defender\Features"</code></pre>
+            <pre><code>// reg.exe save dla hive SYSTEM / SAM / SECURITY
+DeviceProcessEvents
+| where ProcessVersionInfoOriginalFileName == "reg.exe"
+   or InitiatingProcessVersionInfoOriginalFileName == "reg.exe"
+| where ProcessCommandLine contains " save "
+   or InitiatingProcessCommandLine contains " save "
+| where ProcessCommandLine has_any (@"\system", @"\sam", @"\security")
+   or InitiatingProcessCommandLine has_any (@"\system", @"\sam", @"\security")</code></pre>
+            <pre><code>// PowerShell ustawiający fDenyTSConnections
+DeviceEvents
+| where ActionType == "PowerShellCommand"
+| where InitiatingProcessCommandLine has_any (@"New-ItemProperty", @"Set-ItemProperty")
+| where InitiatingProcessCommandLine contains "fDenyTSConnections"
+   or InitiatingProcessCommandLine has @"\Control\Terminal Server"</code></pre>
+            <pre><code>// PowerShell odczytujący ustawienia Defender Features
+DeviceEvents
+| where ActionType == "PowerShellCommand"
+| where InitiatingProcessCommandLine has_any (@"Get-ItemProperty", @"Get-Item")
+| where InitiatingProcessCommandLine has @"\Microsoft\Windows Defender\Features"</code></pre>
+            <pre><code>// WDigest UseLogonCredential ustawiane przez reg add
+DeviceProcessEvents
+| where ProcessVersionInfoOriginalFileName == "reg.exe"
+   or InitiatingProcessVersionInfoOriginalFileName == "reg.exe"
+| where ProcessCommandLine contains " add "
+   or InitiatingProcessCommandLine contains " add "
+| where ProcessCommandLine has @"\SecurityProviders\WDigest"
+   or InitiatingProcessCommandLine has @"\SecurityProviders\WDigest"
+| where ProcessCommandLine contains "UseLogonCredential"
+   or InitiatingProcessCommandLine contains "UseLogonCredential"</code></pre>
+            <pre><code>// EnableLinkedConnections ustawione na 1
+DeviceRegistryEvents
+| where RegistryKey has @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"
+| where RegistryValueName == "EnableLinkedConnections"
+| where RegistryValueData == "1"</code></pre>
+            <pre><code>// reg add ustawiający EnableLinkedConnections
+DeviceProcessEvents
+| where ProcessVersionInfoOriginalFileName == "reg.exe"
+   or InitiatingProcessVersionInfoOriginalFileName == "reg.exe"
+| where ProcessCommandLine contains " add "
+   or InitiatingProcessCommandLine contains " add "
+| where ProcessCommandLine has @"Microsoft\Windows\CurrentVersion\Policies\System"
+   or InitiatingProcessCommandLine has @"Microsoft\Windows\CurrentVersion\Policies\System"
+| where ProcessCommandLine has @"/v"
+   or InitiatingProcessCommandLine has @"/v"
+| where ProcessCommandLine contains "EnableLinkedConnections"
+   or InitiatingProcessCommandLine contains "EnableLinkedConnections"
+| where ProcessCommandLine has "1"
+   or InitiatingProcessCommandLine has "1"</code></pre>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ 11. Logging i monitoring zmian rejestru</summary>
+          <div class="details-body">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Źródło</th>
+                    <th>ID / typ</th>
+                    <th>Dlaczego ważne</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Security</td>
+                    <td>4657</td>
+                    <td>Modyfikacja wartości rejestru, krytyczna przy monitorowaniu persistence i zmian polityk.</td>
+                  </tr>
+                  <tr>
+                    <td>Security</td>
+                    <td>4688</td>
+                    <td>Tworzenie procesu, niezbędne do korelacji z <code>reg.exe</code>, <code>powershell.exe</code>, <code>mshta.exe</code> i innymi LOLBin-ami.</td>
+                  </tr>
+                  <tr>
+                    <td>Sysmon</td>
+                    <td>1</td>
+                    <td>Process creation z pełniejszą telemetrią, parent-child i cmdline.</td>
+                  </tr>
+                  <tr>
+                    <td>Sysmon</td>
+                    <td>12</td>
+                    <td>Registry object create/delete.</td>
+                  </tr>
+                  <tr>
+                    <td>Sysmon</td>
+                    <td>13</td>
+                    <td>Registry value set.</td>
+                  </tr>
+                  <tr>
+                    <td>Sysmon</td>
+                    <td>14</td>
+                    <td>Registry key/value rename, przydatne przy antyforensics i ukrywaniu wpisów.</td>
+                  </tr>
+                  <tr>
+                    <td>PowerShell</td>
+                    <td>4104</td>
+                    <td>Script Block Logging, bardzo wartościowy przy <code>Set-ItemProperty</code>, <code>New-ItemProperty</code> i modyfikacji ustawień bezpieczeństwa.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p style="margin-top:12px;">Do praktycznego monitoringu warto łączyć rejestrowe zmiany z procesami, kontekstem użytkownika, hostem docelowym i ścieżką binarki. Sam wpis rejestru rzadko wystarcza, ale razem z <code>4688</code>, Sysmon i PowerShell daje już bardzo mocny materiał do potwierdzenia persistence, credential theft albo zmiany ustawień RDP/Defendera.</p>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ 12. Misconfiguration i ścieżki, które trzeba sprawdzić</summary>
+          <div class="details-body">
+            <ul>
+              <li><code>HKLM\System\CurrentControlSet\Control\Lsa</code> z naciskiem na <code>DsrmAdminLogonBehavior</code>.</li>
+              <li><code>HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System</code> z naciskiem na <code>EnableLinkedConnections</code>.</li>
+              <li><code>HKLM\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters</code> z naciskiem na <code>MaxMpxCt</code>.</li>
+              <li><code>HKCU\SOFTWARE\Policies\Microsoft\Windows\Installer</code> i <code>HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer</code> z naciskiem na <code>AlwaysInstallElevated</code>.</li>
+              <li><code>HKLM\System\CurrentControlSet\Control\Terminal Server</code> z naciskiem na <code>fDenyTSConnections</code>.</li>
+              <li><code>HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest</code> z naciskiem na <code>UseLogonCredential</code>.</li>
+              <li><code>HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree</code> w korelacji z zadaniami harmonogramu.</li>
+              <li><code>HKLM\SYSTEM\CurrentControlSet\Services</code> pod kątem ścieżek do <code>Temp</code>, <code>ProgramData</code>, <code>Users\Public</code>, <code>AppData</code>.</li>
+            </ul>
+            <p style="margin-top:12px;">Przy review tych ścieżek zawsze sprawdzaj nie tylko aktualną wartość, ale też sąsiednie wpisy, daty modyfikacji hive, kontekst użytkownika i odpowiadające procesy. Same błędne ustawienia są ważne konfiguracyjnie, ale dopiero korelacja z wykonaniem i logami daje obraz incydentu.</p>
+          </div>
+        </details>
+
+        <details open>
+          <summary>▾ 13. Dodatkowe referencje do registry huntingu i forensics</summary>
+          <div class="details-body">
+            <ul>
+              <li><a href="https://attack.mitre.org/techniques/T1012/" target="_blank" rel="noopener noreferrer">MITRE ATT&amp;CK T1012 - Query Registry</a></li>
+              <li><a href="https://www.atomicredteam.io/docs/atomics/T1012" target="_blank" rel="noopener noreferrer">Atomic Red Team - T1012</a></li>
+              <li><a href="https://attack.mitre.org/techniques/T1112/" target="_blank" rel="noopener noreferrer">MITRE ATT&amp;CK T1112 - Modify Registry</a></li>
+              <li><a href="https://www.atomicredteam.io/docs/atomics/T1112" target="_blank" rel="noopener noreferrer">Atomic Red Team - T1112</a></li>
+              <li><a href="https://attack.mitre.org/techniques/T1003/002/" target="_blank" rel="noopener noreferrer">MITRE ATT&amp;CK T1003.002 - Security Account Manager</a></li>
+              <li><a href="https://www.atomicredteam.io/docs/atomics/T1003.002" target="_blank" rel="noopener noreferrer">Atomic Red Team - T1003.002</a></li>
+              <li><a href="https://learn.microsoft.com/en-us/sysinternals/downloads/sysmon" target="_blank" rel="noopener noreferrer">Sysmon</a></li>
+              <li><a href="https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventid=4657" target="_blank" rel="noopener noreferrer">Security Event 4657</a></li>
+              <li><a href="https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventid=4688" target="_blank" rel="noopener noreferrer">Security Event 4688</a></li>
+              <li><a href="https://www.splunk.com/en_us/blog/security/hunting-for-malicious-powershell-using-script-block-logging.html" target="_blank" rel="noopener noreferrer">Hunting for malicious PowerShell using Script Block Logging</a></li>
+              <li><a href="https://persistence-info.github.io/" target="_blank" rel="noopener noreferrer">Persistence Info</a></li>
+              <li><a href="https://www.cybertriage.com/blog/windows-registry-forensics-cheat-sheet-2026/" target="_blank" rel="noopener noreferrer">Windows Registry Forensics Cheat Sheet 2026</a></li>
+            </ul>
+          </div>
+        </details>
       </section>
 
       <section id="ops">
@@ -2594,6 +2922,46 @@ Get-WinEvent -LogName 'Microsoft-Windows-Windows Defender/Operational' -MaxEvent
 [ ] wdrożono containment dla hostów, kont i segmentów
 [ ] przygotowano plan eradication i recovery
 [ ] zapisano lesson learned oraz działania naprawcze</code></pre>
+          </div>
+        </details>
+      </section>
+
+      <section id="tools-catalog">
+        <h3>Narzędzia</h3>
+        <p>
+          Ta sekcja jest celowo przygotowana w prostym, ręcznie rozszerzalnym układzie. Każdy wpis możesz kopiować i dopisywać dalej jako kolejny numer, zachowując ten sam schemat: nazwa narzędzia, krótki opis w 4-5 zdaniach i link do źródła lub producenta.
+        </p>
+
+        <details open>
+          <summary>▾ Katalog narzędzi do dalszej rozbudowy</summary>
+          <div class="details-body">
+            <ol>
+              <li>
+                <strong>Registry Explorer</strong>
+                <p>Registry Explorer jest jednym z najwygodniejszych narzędzi do ręcznej analizy hive Windows i szybkiego pivotowania między kluczami, wartościami oraz timestampami. Dobrze sprawdza się wtedy, gdy chcesz połączyć persistence, aktywność użytkownika i konfigurację bezpieczeństwa w jednym widoku. Narzędzie jest szczególnie użyteczne przy analizie <code>NTUSER.dat</code>, <code>UsrClass.dat</code>, <code>SYSTEM</code> i <code>SOFTWARE</code>. W praktyce pozwala szybciej wychwycić nietypowe ścieżki, wpisy autostartu i podejrzane modyfikacje polityk niż klasyczny podgląd tekstowy.</p>
+                <p><a href="https://www.sans.org/tools/registry-explorer/" target="_blank" rel="noopener noreferrer">Link do narzędzia</a></p>
+              </li>
+              <li>
+                <strong>EvtxECmd</strong>
+                <p>EvtxECmd służy do szybkiej konwersji logów EVTX do formatu CSV, JSON lub innych struktur wygodnych do dalszej obróbki. Jest bardzo praktyczny w pierwszej fazie IR, bo pozwala błyskawicznie przejść od surowego logu do korelacji w Timeline Explorer, Excelu lub SIEM-ie. Dla Windows forensics szczególnie dobrze uzupełnia rejestrowe artefakty, bo można zestawiać zmiany w rejestrze z procesami, taskami i logowaniami. To narzędzie warto mieć na każdym nośniku IR, bo znacząco skraca czas do pierwszych odpowiedzi.</p>
+                <p><a href="https://www.sans.org/tools/evtxecmd/" target="_blank" rel="noopener noreferrer">Link do narzędzia</a></p>
+              </li>
+              <li>
+                <strong>Sysmon</strong>
+                <p>Sysmon nie jest klasycznym parserem forensic, ale stanowi jedno z najważniejszych źródeł telemetrycznych do monitorowania zmian w rejestrze, uruchomień procesów, połączeń sieciowych i aktywności plikowej. W kontekście registry huntingu kluczowe są zwłaszcza zdarzenia 12, 13 i 14, które pokazują tworzenie, modyfikację i zmianę nazw wpisów rejestru. Dobrze skonfigurowany Sysmon znacząco poprawia jakość triage, bo dostarcza pełniejszy kontekst niż sam Security log. Przy budowie detekcji warto zestawiać go z PowerShell 4104, Security 4688 i zapytaniami KQL.</p>
+                <p><a href="https://learn.microsoft.com/en-us/sysinternals/downloads/sysmon" target="_blank" rel="noopener noreferrer">Link do narzędzia</a></p>
+              </li>
+              <li>
+                <strong>Autoruns</strong>
+                <p>Autoruns pomaga bardzo szybko przejrzeć szerokie spektrum mechanizmów autostartu w Windows, nie ograniczając się wyłącznie do Run i RunOnce. Dzięki temu dobrze nadaje się do wstępnego wykrywania persistence, zwłaszcza gdy wpisy są rozproszone między usługami, zadaniami, shell extensions i innymi lokalizacjami. W incident response narzędzie jest szczególnie użyteczne jako szybki pivot przed głębszą analizą registry hive i scheduled tasks. Wyniki Autoruns warto zawsze potwierdzać przez rejestr, pliki na dysku i logi tworzenia procesów.</p>
+                <p><a href="https://learn.microsoft.com/en-us/sysinternals/downloads/autoruns" target="_blank" rel="noopener noreferrer">Link do narzędzia</a></p>
+              </li>
+              <li>
+                <strong>RegRipper</strong>
+                <p>RegRipper automatyzuje ekstrakcję artefaktów z hive Windows przy użyciu gotowych pluginów, co jest wygodne przy seryjnej analizie wielu hostów. Narzędzie dobrze sprawdza się tam, gdzie chcesz szybko wyciągnąć najważniejsze ślady bez ręcznego przeklikiwania każdego klucza. W praktyce może przyspieszyć identyfikację autostartu, polityk, artefaktów użytkownika i części ustawień bezpieczeństwa. Jest szczególnie przydatne jako uzupełnienie Registry Explorer, bo pozwala najpierw zbudować szybki obraz sytuacji, a dopiero potem przejść do ręcznej walidacji.</p>
+                <p><a href="https://github.com/keydet89/RegRipper3.0" target="_blank" rel="noopener noreferrer">Link do narzędzia</a></p>
+              </li>
+            </ol>
           </div>
         </details>
       </section>
